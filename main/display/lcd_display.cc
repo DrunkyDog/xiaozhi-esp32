@@ -492,6 +492,8 @@ void LcdDisplay::SetupUI() {
     lv_obj_add_flag(low_battery_popup_, LV_OBJ_FLAG_HIDDEN);
 
     emoji_image_ = lv_img_create(screen);
+    lv_image_set_scale(emoji_image_, 256);      // 1x: 128px GIF renders at native 128px
+    lv_image_set_pivot(emoji_image_, 64, 64);   // center of the 128px image
     lv_obj_align(emoji_image_, LV_ALIGN_TOP_MID, 0,
                  text_font->line_height + lvgl_theme->spacing(8));
 
@@ -849,10 +851,16 @@ void LcdDisplay::SetupUI() {
 
     /* Bottom layer: emoji_box_ - centered display */
     emoji_box_ = lv_obj_create(screen);
-    lv_obj_set_size(emoji_box_, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    // Fixed 130x130 to fit the native 128px GIF; LV_SIZE_CONTENT would clip the image
+    // or show a scrollbar frame around it.
+    lv_obj_set_size(emoji_box_, 130, 130);
     lv_obj_set_style_bg_opa(emoji_box_, LV_OPA_TRANSP, 0);
     lv_obj_set_style_pad_all(emoji_box_, 0, 0);
     lv_obj_set_style_border_width(emoji_box_, 0, 0);
+    lv_obj_set_style_outline_width(emoji_box_, 0, 0);
+    lv_obj_set_style_radius(emoji_box_, 0, 0);
+    lv_obj_set_scrollbar_mode(emoji_box_, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_add_flag(emoji_box_, LV_OBJ_FLAG_OVERFLOW_VISIBLE);
     lv_obj_align(emoji_box_, LV_ALIGN_CENTER, 0, 0);
 
     emoji_label_ = lv_label_create(emoji_box_);
@@ -861,6 +869,8 @@ void LcdDisplay::SetupUI() {
     lv_label_set_text(emoji_label_, MATERIAL_SYMBOLS_ROBOT_2);
 
     emoji_image_ = lv_img_create(emoji_box_);
+    lv_image_set_scale(emoji_image_, 256);      // 1x: 128px GIF renders at native 128px
+    lv_image_set_pivot(emoji_image_, 64, 64);   // center of the 128px image
     lv_obj_center(emoji_image_);
     lv_obj_add_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN);
 

@@ -342,7 +342,7 @@ elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_2_06)
     set(BOARD_TYPE "esp32-s3-touch-amoled-2.06")
     set(BUILTIN_TEXT_FONT font_noto_sans_basic_30_4)
     set(BUILTIN_ICON_FONT font_material_symbols_30_4)
-    set(DEFAULT_EMOJI_COLLECTION noto-color-emoji_64)
+    set(DEFAULT_EMOJI_COLLECTION alice-moods-64)
 elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_C6_TOUCH_AMOLED_2_06)
     set(MANUFACTURER "waveshare")
     set(BOARD_TYPE "esp32-c6-touch-amoled-2.06")
@@ -1222,8 +1222,11 @@ function(build_default_assets_bin)
     # Add default emoji collection if defined
     if(DEFAULT_EMOJI_COLLECTION)
         list(APPEND BUILD_ARGS "--emoji_collection" "${DEFAULT_EMOJI_COLLECTION}")
+        # Collections may live under png/ (PNG sets) or gif/ (animated sets, e.g. alice-moods-64);
+        # glob both so edits to the GIF sources also re-trigger the assets rebuild.
         file(GLOB DEFAULT_EMOJI_FILES CONFIGURE_DEPENDS
             "${NOTO_FONTS_PATH}/png/${DEFAULT_EMOJI_COLLECTION}/*"
+            "${NOTO_FONTS_PATH}/gif/${DEFAULT_EMOJI_COLLECTION}/*"
         )
         list(APPEND DEFAULT_ASSETS_DEPENDENCIES ${DEFAULT_EMOJI_FILES})
     endif()

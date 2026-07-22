@@ -15,6 +15,7 @@ public:
     void OnExitSleepMode(std::function<void()> callback);
     void OnShutdownRequest(std::function<void()> callback);
     void WakeUp();
+    void EnterSleepMode();  // manually enter power-save (e.g. via voice command)
 
 private:
     void PowerSaveCheck();

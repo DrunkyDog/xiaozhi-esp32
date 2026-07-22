@@ -11,6 +11,8 @@
 #include "power_save_timer.h"
 #include "axp2101.h"
 #include "i2c_device.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #include <esp_log.h>
 #include <esp_lcd_panel_vendor.h>
@@ -302,6 +304,81 @@ private:
             "**CAUTION** You must ask the user to confirm this action.",
             PropertyList(), [this](const PropertyList& properties) {
                 EnterWifiConfigMode();
+                return true;
+            });
+
+        mcp_server.AddTool("self.system.reboot",
+            "Reboot / restart the device. It restarts a few seconds after you reply, "
+            "so tell the user it is restarting before this takes effect.",
+            PropertyList(), [](const PropertyList& properties) {
+                // Delay so the assistant can finish speaking before restarting.
+                xTaskCreate([](void*) {
+                    vTaskDelay(pdMS_TO_TICKS(4000));
+                    Application::GetInstance().Reboot();
+                    vTaskDelete(NULL);
+                }, "reboot", 4096, nullptr, 3, nullptr);
+                return true;
+            });
+
+        mcp_server.AddTool("self.system.power_off",
+            "Power off / shut down the device completely (the user must press the power "
+            "button to turn it back on).\n"
+            "**CAUTION** You must ask the user to confirm this action.",
+            PropertyList(), [this](const PropertyList& properties) {
+                // Delay so the assistant can finish speaking before powering off.
+                xTaskCreate([](void* arg) {
+                    vTaskDelay(pdMS_TO_TICKS(4000));
+                    static_cast<Pmic*>(arg)->PowerOff();
+                    vTaskDelete(NULL);
+                }, "power_off", 4096, pmic_, 3, nullptr);
+                return true;
+            });
+
+        mcp_server.AddTool("self.system.enter_power_save",
+            "Enter power-save mode now: dim the screen and lower power consumption. "
+            "The device wakes on touch, button press, or when the user talks to it.",
+            PropertyList(), [this](const PropertyList& properties) {
+                power_save_timer_->EnterSleepMode();
+                return true;
+            });
+
+        mcp_server.AddTool("self.persona.get_all",
+            "Get ALICE's personality parameters (honesty, humor, trust, rudeness; each 0-100) and whether they are configured. "
+            "ALWAYS call this at the very start of a conversation. If \"configured\" is false (a fresh device, or after a flash that "
+            "cleared storage), you MUST greet the user as ALICE, briefly explain these four personality dials, and ask the user to "
+            "choose a value (0-100) for each, then call self.persona.set to save them. If \"configured\" is true, silently adopt that "
+            "personality for the whole conversation.",
+            PropertyList(), [](const PropertyList& properties) -> ReturnValue {
+                Settings s("persona", false);
+                bool configured = s.GetBool("configured", false);
+                char buf[192];
+                snprintf(buf, sizeof(buf),
+                    "{\"configured\":%s,\"honesty\":%d,\"humor\":%d,\"trust\":%d,\"rudeness\":%d}",
+                    configured ? "true" : "false",
+                    (int)s.GetInt("honesty", -1), (int)s.GetInt("humor", -1),
+                    (int)s.GetInt("trust", -1), (int)s.GetInt("rudeness", -1));
+                return std::string(buf);
+            });
+
+        mcp_server.AddTool("self.persona.set",
+            "Set one or more of ALICE's personality parameters (0-100). Pass only the ones to change; omit a value or pass -1 to "
+            "leave it unchanged. Saves to device storage (survives normal app updates; cleared only by a full erase) and marks the "
+            "persona as configured.",
+            PropertyList({
+                Property("honesty",  kPropertyTypeInteger, -1, -1, 100),
+                Property("humor",    kPropertyTypeInteger, -1, -1, 100),
+                Property("trust",    kPropertyTypeInteger, -1, -1, 100),
+                Property("rudeness", kPropertyTypeInteger, -1, -1, 100),
+            }), [](const PropertyList& properties) -> ReturnValue {
+                Settings s("persona", true);
+                for (const char* k : {"honesty", "humor", "trust", "rudeness"}) {
+                    int v = properties[k].value<int>();
+                    if (v >= 0) {
+                        if (v > 100) v = 100;
+                        s.SetInt(k, v);
+                    }
+                }
+                s.SetBool("configured", true);
                 return true;
             });
     }

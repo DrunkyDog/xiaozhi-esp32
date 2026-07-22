@@ -435,7 +435,7 @@ void Application::CheckNewVersion() {
             char error_message[128];
             snprintf(error_message, sizeof(error_message), "code=%d, url=%s", err,
                      ota_->GetCheckVersionUrl().c_str());
-            char buffer[256];
+            char buffer[512];
             snprintf(buffer, sizeof(buffer), Lang::Strings::CHECK_NEW_VERSION_FAILED, retry_delay,
                      error_message);
             Alert(Lang::Strings::ERROR, buffer, "cloud_off", Lang::Sounds::OGG_EXCLAMATION);

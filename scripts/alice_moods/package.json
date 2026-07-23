@@ -1,0 +1,9 @@
+{
+  "name": "alice-moods-renderer",
+  "private": true,
+  "type": "module",
+  "description": "Headless re-export of the ALICE Mood Studio avatars at any resolution",
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.80"
+  }
+}

@@ -705,12 +705,21 @@ def get_emoji_collection_path(default_emoji_collection, noto_fonts_path, project
     Returns the emoji directory path or None if no emoji collection is needed
     
     Supports:
+    - Project-local collections under custom-assets/ (e.g., alice-moods-64)
     - PNG emoji collections from noto-fonts (e.g., noto-color-emoji_32)
     - Otto GIF emoji collection (otto-gif)
     """
     if not default_emoji_collection:
         return None
-    
+
+    # Project-local collections win over the bundled ones. They live in the
+    # repo rather than under managed_components/, which is gitignored, so a
+    # fresh clone builds with the right artwork without a manual copy step.
+    if project_root:
+        custom_path = os.path.join(project_root, 'custom-assets', default_emoji_collection)
+        if os.path.isdir(custom_path):
+            return custom_path
+
     # Special handling for otto-gif collection
     if default_emoji_collection == 'otto-gif':
         if project_root:

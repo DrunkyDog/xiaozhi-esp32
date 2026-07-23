@@ -1222,9 +1222,12 @@ function(build_default_assets_bin)
     # Add default emoji collection if defined
     if(DEFAULT_EMOJI_COLLECTION)
         list(APPEND BUILD_ARGS "--emoji_collection" "${DEFAULT_EMOJI_COLLECTION}")
-        # Collections may live under png/ (PNG sets) or gif/ (animated sets, e.g. alice-moods-64);
-        # glob both so edits to the GIF sources also re-trigger the assets rebuild.
+        # Collections may live in custom-assets/ (project-local, checked in) or under
+        # png/ (PNG sets) or gif/ (animated sets) in xiaozhi-fonts; glob all three so
+        # edits to any of them re-trigger the assets rebuild. Resolution order matches
+        # get_emoji_collection_path() in build_default_assets.py: custom-assets wins.
         file(GLOB DEFAULT_EMOJI_FILES CONFIGURE_DEPENDS
+            "${PROJECT_DIR}/custom-assets/${DEFAULT_EMOJI_COLLECTION}/*"
             "${NOTO_FONTS_PATH}/png/${DEFAULT_EMOJI_COLLECTION}/*"
             "${NOTO_FONTS_PATH}/gif/${DEFAULT_EMOJI_COLLECTION}/*"
         )

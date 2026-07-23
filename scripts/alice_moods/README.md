@@ -12,13 +12,16 @@ the design project rather than editing them here.
 
 ```bash
 cd scripts/alice_moods && npm install          # once — installs @napi-rs/canvas
-node render_alice_moods.mjs 256 ../../managed_components/78__xiaozhi-fonts/gif/alice-moods-64
+node render_alice_moods.mjs 256 ../../custom-assets/alice-moods-64
 ```
 
-Then rebuild; `main/CMakeLists.txt` globs that directory, so the assets partition
-is regenerated automatically.
+Then rebuild. `custom-assets/<collection>` is the single source of truth: it is
+resolved first by `get_emoji_collection_path()` in `scripts/build_default_assets.py`
+and globbed by `main/CMakeLists.txt`, so editing it regenerates the assets partition
+on the next build and a fresh clone builds with the right artwork.
 
-Keep `custom-assets/alice-moods-64/` in sync as the tracked source copy.
+Do **not** put a copy under `managed_components/78__xiaozhi-fonts/gif/` — that path
+is gitignored and is now shadowed by `custom-assets/` anyway.
 
 ## Sizing
 

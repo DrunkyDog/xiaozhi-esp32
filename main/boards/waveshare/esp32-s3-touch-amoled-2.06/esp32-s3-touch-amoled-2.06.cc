@@ -829,7 +829,13 @@ public:
             AUDIO_CODEC_PA_PIN, 
             AUDIO_CODEC_ES8311_ADDR, 
             AUDIO_CODEC_ES7210_ADDR, 
-            AUDIO_INPUT_REFERENCE);
+            AUDIO_INPUT_REFERENCE,
+            /* input_gain */ 30.0f,
+            /* reference_gain_channel */ -1,
+            /* reference_gain */ 0.0f,
+            // NS4150B on this board is supplied from VCC3V3, not the 5 V rail
+            // the shared default assumes (schematic V1.0, PA&SPEAKER block).
+            /* pa_voltage */ 3.3f);
         return &audio_codec;
     }
 

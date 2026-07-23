@@ -13,6 +13,12 @@
 #include "i2c_device.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <cstring>
+#include <cctype>
+#include <cstdlib>
+#include <ctime>
+#include <string>
+#include <esp_timer.h>
 
 #include <esp_log.h>
 #include <esp_lcd_panel_vendor.h>
@@ -117,7 +123,384 @@ public:
         lv_obj_set_style_pad_left(status_bar_, LV_HOR_RES*  0.1, 0);
         lv_obj_set_style_pad_right(status_bar_, LV_HOR_RES*  0.1, 0);
         lv_display_add_event_cb(display_, rounder_event_cb, LV_EVENT_INVALIDATE_AREA, NULL);
+
+        // Avatar frame — the ALICE Mood Studio card translated to LVGL.
+        // emoji_box_ keeps its LV_SIZE_CONTENT sizing, so the frame grows with
+        // whatever mood GIFs are packed and needs no edit when they get bigger.
+        lv_obj_set_style_bg_opa(emoji_box_, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(emoji_box_, lv_color_hex(kAvatarCardBg), 0);
+        lv_obj_set_style_pad_all(emoji_box_, kAvatarPad, 0);
+        lv_obj_set_style_radius(emoji_box_, kAvatarRadius, 0);
+        lv_obj_set_style_border_width(emoji_box_, kAvatarBorder, 0);
+        lv_obj_set_style_border_opa(emoji_box_, LV_OPA_80, 0);
+        lv_obj_set_style_shadow_width(emoji_box_, kAvatarGlow, 0);
+        lv_obj_set_style_shadow_offset_y(emoji_box_, 6, 0);
+        lv_obj_set_style_shadow_opa(emoji_box_, LV_OPA_40, 0);
+        // Without this an avatar larger than the box scrolls inside it instead
+        // of being visible, which reads as the artwork being cropped.
+        lv_obj_remove_flag(emoji_box_, LV_OBJ_FLAG_SCROLLABLE);
+        // Vertical budget at 410x502: top icon row ~44 px, the date/time row
+        // below it ~34 px, and bottom_bar_ wraps chat onto two lines (~90 px).
+        // Centering on what is left lands within a few pixels of the screen
+        // centre, and still clears both at a 256 px avatar (302 px frame).
+        lv_obj_align(emoji_box_, LV_ALIGN_CENTER, 0, kAvatarOffsetY);
+
+        // Date + time, top centre, one row under the status icons. The core
+        // already writes an "HH:MM" clock into status_label_ when idle; that is
+        // suppressed in SetStatus() below so the two do not say the same thing.
+        datetime_label_ = lv_label_create(lv_screen_active());
+        lv_obj_set_width(datetime_label_, LV_HOR_RES);
+        lv_label_set_long_mode(datetime_label_, LV_LABEL_LONG_CLIP);
+        lv_obj_set_style_text_align(datetime_label_, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_text_color(datetime_label_, lv_color_hex(kDateTimeColor), 0);
+        lv_label_set_text(datetime_label_, kDateTimePlaceholder);
+        lv_obj_align(datetime_label_, LV_ALIGN_TOP_MID, 0, kDateTimeOffsetY);
+
+        ApplyFrame();
+
+        Settings settings("mood_sched", false);
+        schedule_ = settings.GetString("table", kScheduleDefault);
+        if (!ValidSchedule(schedule_)) {
+            ESP_LOGW(TAG, "Stored mood schedule is invalid, falling back to default");
+            schedule_ = kScheduleDefault;
+        }
+
+        // One timer drives both the clock and the frame's state tint. 250 ms is
+        // fast enough that the frame reacts to "listening" without a visible
+        // lag, while the label itself only redraws when the second changes.
+        tick_timer_ = lv_timer_create(TickCb, kTickPeriodMs, this);
     }
+
+    virtual void SetEmotion(const char* emotion) override {
+        // Only a mood that arrived mid-conversation out-ranks the schedule.
+        // The "neutral" the app sets while booting must not, or the scheduled
+        // mood would be locked out for a whole hold window after every reset.
+        auto state = Application::GetInstance().GetDeviceState();
+        if (state == kDeviceStateListening || state == kDeviceStateSpeaking) {
+            llm_hold_until_ms_ = NowMs() + kMoodHoldMs;
+        }
+        ApplyMood(emotion);
+    }
+
+    // Schedule accessors for the board's MCP tools.
+    std::string GetSchedule() const { return schedule_; }
+
+    bool SetSchedule(const std::string& table) {
+        if (!ValidSchedule(table)) {
+            return false;
+        }
+        schedule_ = table;
+        Settings settings("mood_sched", true);
+        settings.SetString("table", schedule_);
+        // Drop any conversation hold so the new table is visible immediately —
+        // whoever just edited it wants to see the result, not wait it out.
+        llm_hold_until_ms_ = 0;
+        return true;
+    }
+
+    // The idle "HH:MM" the core pushes into the status line is redundant now
+    // that the date/time row carries the clock, so drop it and leave the status
+    // line for real status text. Anything else passes through untouched.
+    virtual void SetStatus(const char* status) override {
+        if (IsBareClock(status)) {
+            SpiLcdDisplay::SetStatus("");
+            return;
+        }
+        SpiLcdDisplay::SetStatus(status);
+    }
+
+private:
+    // Frame geometry. Padding/radius are tuned against a 256px avatar on the
+    // 410x502 panel; the border and glow are heavier than the web card's 1.5px
+    // because this is read at arm's length, not on a monitor.
+    static constexpr int kAvatarPad = 20;
+    static constexpr int kAvatarRadius = 32;
+    static constexpr int kAvatarBorder = 3;
+    static constexpr int kAvatarGlow = 30;
+    static constexpr int kAvatarOffsetY = 0;
+    static constexpr uint32_t kAvatarCardBg = 0x0C121D;
+    static constexpr uint32_t kDefaultAccent = 0x3CDCEB;  // neutral
+
+    static constexpr int kDateTimeOffsetY = 46;
+    static constexpr uint32_t kDateTimeColor = 0x8A93A6;  // Mood Studio muted text
+    static constexpr const char* kDateTimeFormat = "%d %b %Y   %H:%M:%S";
+    static constexpr const char* kDateTimePlaceholder = "--  ---  ----   --:--:--";
+    static constexpr uint32_t kTickPeriodMs = 250;
+    // Time arrives from the OTA handshake with the timezone offset already
+    // folded in (see ota.cc), so localtime() is wall clock and needs no TZ set.
+    // Before that handshake the clock reads 1970, hence the year sanity check.
+    static constexpr int kFirstValidYear = 2025;
+
+    // Mood schedule: "<startHour>:<mood>,..." — each entry runs until the next,
+    // and the last entry wraps past midnight. Lives in NVS rather than being
+    // compiled in, so retuning the table is an MCP call, not a reflash.
+    static constexpr const char* kScheduleDefault =
+        "5:neutral,8:confident,12:delicious,13:thinking,17:cool,20:relaxed,23:sleepy";
+    // How long a mood spoken during a conversation outranks the schedule.
+    static constexpr int64_t kMoodHoldMs = 5 * 60 * 1000;
+
+    struct MoodAccent {
+        const char* name;
+        uint32_t color;
+    };
+
+    // Accent per mood, lifted from the Mood Studio MOODS table so the frame and
+    // the character's own earpiece/overlay glow stay the same color. Names are
+    // the server's EMOJI_MAP keys (note "kissy", not "kiss").
+    static constexpr MoodAccent kMoodAccents[] = {
+        {"neutral",     0x3CDCEB},
+        {"happy",       0x3CDC64},
+        {"laughing",    0xFFA51E},
+        {"funny",       0xFFB020},
+        {"sad",         0x508CFF},
+        {"angry",       0xFF3C3C},
+        {"crying",      0x6AA8FF},
+        {"loving",      0xFF78A0},
+        {"embarrassed", 0xFF8FA3},
+        {"surprised",   0xFFA51E},
+        {"shocked",     0x7FB0FF},
+        {"thinking",    0x3CDCEB},
+        {"winking",     0x3CDC64},
+        {"cool",        0x508CFF},
+        {"relaxed",     0x5AD7C3},
+        {"delicious",   0xFFA51E},
+        {"kissy",       0xFF78A0},
+        {"confident",   0xFAD62A},
+        {"sleepy",      0xA078EB},
+        {"silly",       0xFFB020},
+        {"confused",    0xA078EB},
+    };
+
+    static uint32_t AccentFor(const char* emotion) {
+        if (emotion != nullptr) {
+            for (const auto& accent : kMoodAccents) {
+                if (strcmp(accent.name, emotion) == 0) {
+                    return accent.color;
+                }
+            }
+        }
+        // Unmapped emotions fall back to the font-awesome glyph rather than a
+        // GIF, so keep the frame on neutral instead of leaving a stale color.
+        return kDefaultAccent;
+    }
+
+    // The core writes a plain "HH:MM" into the status line while idle. Match
+    // exactly that shape so a real status message never gets swallowed.
+    static bool IsBareClock(const char* status) {
+        if (status == nullptr || strlen(status) != 5 || status[2] != ':') {
+            return false;
+        }
+        for (int i : {0, 1, 3, 4}) {
+            if (!isdigit((unsigned char)status[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // Size the frame to the artwork it is holding.
+    //
+    // LV_SIZE_CONTENT cannot do this here: emoji_image_ is centred inside
+    // emoji_box_, so the box's size would depend on the child's position while
+    // the child's position depends on the box's size. LVGL breaks that cycle by
+    // keeping the old size, which silently crops the avatar. Reading the source
+    // image's own dimensions sidesteps the layout entirely, and keeps the frame
+    // correct for any avatar size without another code change.
+    void FitFrame() {
+        if (emoji_box_ == nullptr || emoji_image_ == nullptr) {
+            return;
+        }
+        if (lv_obj_has_flag(emoji_image_, LV_OBJ_FLAG_HIDDEN)) {
+            // Font-awesome fallback glyph — a label, laid out normally, so
+            // hugging the content is both correct and cheap here.
+            lv_obj_set_size(emoji_box_, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        } else {
+            int32_t w = lv_image_get_src_width(emoji_image_);
+            int32_t h = lv_image_get_src_height(emoji_image_);
+            if (w <= 0 || h <= 0) {
+                return;
+            }
+            const int32_t extra = 2 * (kAvatarPad + kAvatarBorder);
+            lv_obj_set_size(emoji_box_, w + extra, h + extra);
+        }
+        lv_obj_align(emoji_box_, LV_ALIGN_CENTER, 0, kAvatarOffsetY);
+    }
+
+    // Frame colour comes from the mood, frame intensity from what the device is
+    // doing: bright while it is listening to you, softer while it talks back,
+    // dim at rest so it is not a nightlight on the desk.
+    //
+    // Intensity is stepped, never animated. An animated glow would re-blur the
+    // 30 px shadow every frame, which is the one genuinely expensive thing this
+    // frame can do; stepping keeps the shadow a redraw-on-change cost.
+    void ApplyFrame() {
+        if (emoji_box_ == nullptr) {
+            return;
+        }
+
+        lv_opa_t border_opa;
+        lv_opa_t glow_opa;
+        switch (Application::GetInstance().GetDeviceState()) {
+            case kDeviceStateListening:
+                border_opa = LV_OPA_COVER;
+                glow_opa = LV_OPA_70;
+                break;
+            case kDeviceStateSpeaking:
+                border_opa = LV_OPA_COVER;
+                glow_opa = LV_OPA_50;
+                break;
+            case kDeviceStateIdle:
+                border_opa = LV_OPA_60;
+                glow_opa = LV_OPA_20;
+                break;
+            default:  // starting, connecting, upgrading, faults
+                border_opa = LV_OPA_40;
+                glow_opa = LV_OPA_10;
+                break;
+        }
+
+        lv_obj_set_style_border_color(emoji_box_, lv_color_hex(accent_), 0);
+        lv_obj_set_style_shadow_color(emoji_box_, lv_color_hex(accent_), 0);
+        lv_obj_set_style_border_opa(emoji_box_, border_opa, 0);
+        lv_obj_set_style_shadow_opa(emoji_box_, glow_opa, 0);
+    }
+
+    void Tick() {
+        auto state = Application::GetInstance().GetDeviceState();
+        if (state != last_state_) {
+            last_state_ = state;
+            ApplyFrame();
+        }
+
+        time_t now = time(nullptr);
+        if (now == last_shown_) {
+            return;  // same second — neither the clock nor the schedule moved
+        }
+        last_shown_ = now;
+
+        struct tm tm_now;
+        localtime_r(&now, &tm_now);
+        const bool clock_valid = tm_now.tm_year + 1900 >= kFirstValidYear;
+
+        if (datetime_label_ != nullptr) {
+            if (clock_valid) {
+                char buf[40];
+                strftime(buf, sizeof(buf), kDateTimeFormat, &tm_now);
+                lv_label_set_text(datetime_label_, buf);
+            } else {
+                lv_label_set_text(datetime_label_, kDateTimePlaceholder);
+            }
+        }
+
+        // The schedule reclaims the avatar once any conversation mood has aged
+        // out. Checked once a second rather than on an hourly alarm so it also
+        // recovers the moment the clock is first set from the OTA handshake.
+        if (clock_valid && NowMs() >= llm_hold_until_ms_) {
+            std::string mood = ScheduledMoodFor(tm_now.tm_hour);
+            if (!mood.empty() && mood != current_mood_) {
+                ApplyMood(mood.c_str());
+            }
+        }
+    }
+
+    static int64_t NowMs() { return esp_timer_get_time() / 1000; }
+
+    // Applies a mood without touching llm_hold_until_ms_, so the schedule can
+    // set the avatar without pretending a conversation just happened.
+    void ApplyMood(const char* mood) {
+        if (mood == nullptr) {
+            return;
+        }
+        SpiLcdDisplay::SetEmotion(mood);
+
+        DisplayLockGuard lock(this);
+        current_mood_ = mood;
+        accent_ = AccentFor(mood);
+        FitFrame();
+        ApplyFrame();
+    }
+
+    // Walks the table for the entry covering `hour`. Falls back to the latest
+    // entry so the final band (23:00 here) keeps running past midnight.
+    std::string ScheduledMoodFor(int hour) const {
+        std::string best, latest;
+        int best_hour = -1, latest_hour = -1;
+        size_t i = 0;
+        while (i < schedule_.size()) {
+            size_t comma = schedule_.find(',', i);
+            if (comma == std::string::npos) {
+                comma = schedule_.size();
+            }
+            size_t colon = schedule_.find(':', i);
+            if (colon != std::string::npos && colon < comma) {
+                int h = atoi(schedule_.substr(i, colon - i).c_str());
+                std::string mood = schedule_.substr(colon + 1, comma - colon - 1);
+                if (h > latest_hour) { latest_hour = h; latest = mood; }
+                if (h <= hour && h > best_hour) { best_hour = h; best = mood; }
+            }
+            i = comma + 1;
+        }
+        return best.empty() ? latest : best;
+    }
+
+    // Rejects a bad table outright rather than storing something that would
+    // leave the avatar stuck on an emotion the asset pack does not contain.
+    static bool ValidSchedule(const std::string& table) {
+        if (table.empty()) {
+            return false;
+        }
+        size_t i = 0, entries = 0;
+        while (i < table.size()) {
+            size_t comma = table.find(',', i);
+            if (comma == std::string::npos) {
+                comma = table.size();
+            }
+            size_t colon = table.find(':', i);
+            if (colon == std::string::npos || colon >= comma || colon == i) {
+                return false;
+            }
+            std::string hour_str = table.substr(i, colon - i);
+            for (char c : hour_str) {
+                if (!isdigit((unsigned char)c)) {
+                    return false;
+                }
+            }
+            int h = atoi(hour_str.c_str());
+            if (h < 0 || h > 23) {
+                return false;
+            }
+            std::string mood = table.substr(colon + 1, comma - colon - 1);
+            bool known = false;
+            for (const auto& accent : kMoodAccents) {
+                if (mood == accent.name) {
+                    known = true;
+                    break;
+                }
+            }
+            if (!known) {
+                return false;
+            }
+            entries++;
+            i = comma + 1;
+        }
+        return entries > 0;
+    }
+
+    // Runs inside lv_timer_handler, which the LVGL port task calls while it
+    // already holds the display lock — taking DisplayLockGuard here would be
+    // re-entering a lock we are already inside.
+    static void TickCb(lv_timer_t* timer) {
+        static_cast<CustomLcdDisplay*>(lv_timer_get_user_data(timer))->Tick();
+    }
+
+    lv_obj_t* datetime_label_ = nullptr;
+    lv_timer_t* tick_timer_ = nullptr;
+    uint32_t accent_ = kDefaultAccent;
+    DeviceState last_state_ = kDeviceStateUnknown;
+    time_t last_shown_ = 0;
+    std::string schedule_;
+    std::string current_mood_;
+    int64_t llm_hold_until_ms_ = 0;
 };
 
 class CustomBacklight : public Backlight {
@@ -343,27 +726,45 @@ private:
             });
 
         mcp_server.AddTool("self.persona.get_all",
-            "Get ALICE's personality parameters (honesty, humor, trust, rudeness; each 0-100) and whether they are configured. "
-            "ALWAYS call this at the very start of a conversation. If \"configured\" is false (a fresh device, or after a flash that "
-            "cleared storage), you MUST greet the user as ALICE, briefly explain these four personality dials, and ask the user to "
-            "choose a value (0-100) for each, then call self.persona.set to save them. If \"configured\" is true, silently adopt that "
-            "personality for the whole conversation.",
+            "Get ALICE's four personality parameters (honesty, humor, trust, rudeness; each 0-100). "
+            "ALWAYS call this SILENTLY as a background check at the very start of every conversation — do not announce that you are "
+            "checking, and do not narrate this tool. A value of -1 means that dial is not yet set; the \"missing\" array lists exactly "
+            "the dials that are still unset. Silently adopt every dial that already has a value (0-100) for the whole conversation "
+            "without mentioning it. ONLY if \"missing\" is non-empty: greet the user as ALICE and ask them to choose a value (0-100) for "
+            "ONLY the dial(s) named in \"missing\" — never re-ask a dial that is already set — then call self.persona.set to save them. "
+            "If \"missing\" is empty (\"configured\" is true), stay silent and simply proceed with the adopted personality.",
             PropertyList(), [](const PropertyList& properties) -> ReturnValue {
                 Settings s("persona", false);
-                bool configured = s.GetBool("configured", false);
-                char buf[192];
+                int honesty  = (int)s.GetInt("honesty", -1);
+                int humor    = (int)s.GetInt("humor", -1);
+                int trust    = (int)s.GetInt("trust", -1);
+                int rudeness = (int)s.GetInt("rudeness", -1);
+                std::string missing;
+                auto mark_missing = [&missing](const char* name, int v) {
+                    if (v < 0) {
+                        if (!missing.empty()) missing += ",";
+                        missing += "\"";
+                        missing += name;
+                        missing += "\"";
+                    }
+                };
+                mark_missing("honesty", honesty);
+                mark_missing("humor", humor);
+                mark_missing("trust", trust);
+                mark_missing("rudeness", rudeness);
+                bool configured = missing.empty();
+                char buf[256];
                 snprintf(buf, sizeof(buf),
-                    "{\"configured\":%s,\"honesty\":%d,\"humor\":%d,\"trust\":%d,\"rudeness\":%d}",
+                    "{\"configured\":%s,\"honesty\":%d,\"humor\":%d,\"trust\":%d,\"rudeness\":%d,\"missing\":[%s]}",
                     configured ? "true" : "false",
-                    (int)s.GetInt("honesty", -1), (int)s.GetInt("humor", -1),
-                    (int)s.GetInt("trust", -1), (int)s.GetInt("rudeness", -1));
+                    honesty, humor, trust, rudeness, missing.c_str());
                 return std::string(buf);
             });
 
         mcp_server.AddTool("self.persona.set",
             "Set one or more of ALICE's personality parameters (0-100). Pass only the ones to change; omit a value or pass -1 to "
-            "leave it unchanged. Saves to device storage (survives normal app updates; cleared only by a full erase) and marks the "
-            "persona as configured.",
+            "leave it unchanged. Saves to device storage (survives normal app updates; cleared only by a full erase). A dial counts "
+            "as configured only once it has a value; a dial never set stays -1 and will show up in get_all's \"missing\" list.",
             PropertyList({
                 Property("honesty",  kPropertyTypeInteger, -1, -1, 100),
                 Property("humor",    kPropertyTypeInteger, -1, -1, 100),
@@ -380,6 +781,26 @@ private:
                 }
                 s.SetBool("configured", true);
                 return true;
+            });
+
+        mcp_server.AddTool("self.mood_schedule.get",
+            "Get ALICE's avatar mood schedule — which mood her face shows during each part of the day when no one is talking to her. "
+            "Format is \"<startHour>:<mood>,...\"; each entry runs until the next one, and the last entry continues past midnight. "
+            "Call this before self.mood_schedule.set so you edit the current table rather than replacing it blind.",
+            PropertyList(), [this](const PropertyList& properties) -> ReturnValue {
+                return "{\"schedule\":\"" + display_->GetSchedule() + "\"}";
+            });
+
+        mcp_server.AddTool("self.mood_schedule.set",
+            "Replace ALICE's avatar mood schedule. Pass the whole table as \"<startHour>:<mood>,...\" with hours 0-23 in ascending "
+            "order, e.g. \"5:neutral,8:confident,12:delicious,13:thinking,17:cool,20:relaxed,23:sleepy\". Moods must be from the 21 "
+            "supported names (neutral, happy, laughing, funny, sad, angry, crying, loving, embarrassed, surprised, shocked, thinking, "
+            "winking, cool, relaxed, delicious, kissy, confident, sleepy, silly, confused). Saves to device storage and takes effect "
+            "immediately. Returns false without changing anything if the table is malformed.",
+            PropertyList({
+                Property("schedule", kPropertyTypeString),
+            }), [this](const PropertyList& properties) -> ReturnValue {
+                return display_->SetSchedule(properties["schedule"].value<std::string>());
             });
     }
 

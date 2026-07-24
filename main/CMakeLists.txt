@@ -64,6 +64,10 @@ list(APPEND SOURCES
     "boards/common/sy6970.cc"
     "boards/common/system_reset.cc"
 )
+# --- RadarApp (WiFi CSI radar screen) ---
+list(APPEND SOURCES "apps/radar_app.cc")
+list(APPEND SOURCES "apps/csi_sensor.cc")
+list(APPEND INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/apps)
 if(CONFIG_XIAOZHI_NETWORK_ETHERNET)
     list(APPEND SOURCES "boards/common/ethernet_board.cc")
 endif()
@@ -1054,6 +1058,8 @@ idf_component_register(SRCS ${SOURCES}
                     INCLUDE_DIRS ${INCLUDE_DIRS}
                     WHOLE_ARCHIVE
                     PRIV_REQUIRES
+                        esp_wifi
+                        lwip
                         esp_pm
                         esp_psram
                         esp_netif

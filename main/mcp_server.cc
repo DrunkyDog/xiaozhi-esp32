@@ -12,6 +12,7 @@
 
 #include "application.h"
 #include "display.h"
+#include "radar_app.h"
 #include "oled_display.h"
 #include "board.h"
 #include "settings.h"
@@ -31,6 +32,33 @@ McpServer::~McpServer() {
 }
 
 void McpServer::AddCommonTools() {
+    // ===== RadarApp: voice-controlled screen takeover =====
+    {
+        struct RadarHolder {
+            static RadarApp* Get() {
+                static RadarApp* app = nullptr;
+                if (app == nullptr) {
+                    app = new RadarApp(Board::GetInstance().GetDisplay());
+                }
+                return app;
+            }
+        };
+        AddTool("self.radar.open",
+            "Open the WiFi CSI radar screen showing human presence and motion.",
+            PropertyList(),
+            [](const PropertyList& properties) -> ReturnValue {
+                RadarHolder::Get()->Show();
+                return true;
+            });
+        AddTool("self.radar.close",
+            "Close the radar screen and return to the assistant display.",
+            PropertyList(),
+            [](const PropertyList& properties) -> ReturnValue {
+                RadarHolder::Get()->Hide();
+                return true;
+            });
+    }
+
     // *Important* To speed up the response time, we add the common tools to the beginning of
     // the tools list to utilize the prompt cache.
     // **重要** 为了提升响应速度，我们把常用的工具放在前面，利用 prompt cache 的特性。

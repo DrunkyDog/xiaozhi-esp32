@@ -12,3 +12,11 @@ CONFIG_SR_WN_WN9_COMPUTER_TTS=y
 CONFIG_SR_WN_WN9_NIHAOXIAOZHI_TTS=n
 CONFIG_SR_MN_EN_NONE=y
 CONFIG_SR_MN_CN_NONE=y
+
+# LVGL widgets used by the CSI radar app (main/apps/radar_app.cc):
+# lv_chart_* for the vitals plot, lv_tileview_* for the 4-page swipe UI.
+# sdkconfig.defaults turns both off to save flash, so they must be
+# re-enabled here or radar_app.cc fails to compile with
+# "'lv_chart_create' was not declared in this scope".
+CONFIG_LV_USE_CHART=y
+CONFIG_LV_USE_TILEVIEW=y

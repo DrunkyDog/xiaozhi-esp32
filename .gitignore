@@ -20,3 +20,9 @@ mmap_generate_*.h
 .clangd
 node_modules/
 custom-assets/*.bak-*
+
+# Remember plugin session memory (local, per-machine)
+.remember/
+
+# Ad-hoc sdkconfig backups, e.g. sdkconfig.bak-wakeword
+sdkconfig.bak-*

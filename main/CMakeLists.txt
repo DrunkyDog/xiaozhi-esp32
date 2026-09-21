@@ -1026,9 +1026,12 @@ endif()
 
 # Include EspVideo if target is ESP32S3 or ESP32P4
 if(CONFIG_IDF_TARGET_ESP32S3 OR CONFIG_IDF_TARGET_ESP32P4)
-    list(APPEND SOURCES "boards/common/esp_video.cc"
-                        "boards/common/rndis_board.cc"
-                        )
+    list(APPEND SOURCES "boards/common/rndis_board.cc")
+endif()
+
+# esp_video component is only pulled in for ESP32P4 (see main/idf_component.yml)
+if(CONFIG_IDF_TARGET_ESP32P4)
+    list(APPEND SOURCES "boards/common/esp_video.cc")
 endif()
 
 # Include Esp32Camera if target is ESP32S3

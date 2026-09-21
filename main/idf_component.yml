@@ -48,7 +48,7 @@ dependencies:
   espressif/esp_video:
     version: ^2.0.1
     rules:
-    - if: target in [esp32p4, esp32s3]
+    - if: target in [esp32p4]
   
   espressif/esp_image_effects:
     version: ^1.0.1

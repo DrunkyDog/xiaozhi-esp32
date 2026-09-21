@@ -1,0 +1,16 @@
+--- /tmp/audio_codec_data_i2s.c.orig	2026-09-21 22:55:32
++++ managed_components/espressif__esp_codec_dev/platform/audio_codec_data_i2s.c	2026-09-21 22:55:32
+@@ -422,7 +422,12 @@
+     if (skip == false && playback == false && paired && paired->out_handle != NULL && paired->out_enable == false) {
+         // TX is master, set to RX not take effect need reconfig TX also
+         channel = (i2s_chan_handle_t) paired->out_handle;
+-        _i2s_drv_enable(paired, true, false);
++        // LOCAL PATCH: the branch condition above already guarantees
++        // paired->out_enable == false, so the channel is not enabled and
++        // i2s_channel_disable() would always fail with
++        // "the channel has not been enabled yet". The return value was
++        // discarded, so skipping the call is behaviour-preserving and only
++        // removes the spurious ESP_LOGE.
+         ret = set_drv_fs(channel, true, bits_per_sample, i2s_data->clk_src, fs);
+         _i2s_drv_enable(paired, true, true);
+     }

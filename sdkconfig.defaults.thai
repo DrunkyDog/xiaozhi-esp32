@@ -20,3 +20,8 @@ CONFIG_SR_MN_CN_NONE=y
 # "'lv_chart_create' was not declared in this scope".
 CONFIG_LV_USE_CHART=y
 CONFIG_LV_USE_TILEVIEW=y
+
+# Faster DHCP on boot: ask for the previously leased IP straight away
+# (skips DISCOVER/OFFER) and skip the post-ACK ARP conflict probe.
+CONFIG_LWIP_DHCP_RESTORE_LAST_IP=y
+# CONFIG_LWIP_DHCP_DOES_ARP_CHECK is not set

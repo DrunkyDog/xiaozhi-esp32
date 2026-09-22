@@ -17,6 +17,15 @@
 #define WIFI_EVENT_STOPPED BIT1
 #define WIFI_EVENT_SCAN_DONE_BIT BIT2
 #define MAX_RECONNECT_COUNT 5
+#define LAST_AP_NVS_KEY "last_ap"
+
+// The AP we were last connected to, saved so the next boot can connect to it
+// directly instead of doing a full scan (~2.4 s on all channels).
+struct LastApRecord {
+    char ssid[33];
+    uint8_t bssid[6];
+    uint8_t channel;
+};
 
 WifiStation::WifiStation() {
     // Create the event group
@@ -86,6 +95,7 @@ void WifiStation::Stop() {
     
     // Reset was_connected_ flag to prevent stale state from affecting subsequent sessions
     was_connected_ = false;
+    fast_connecting_ = false;
 
     // Clear connected bit
     xEventGroupClearBits(event_group_, WIFI_EVENT_CONNECTED);
@@ -219,6 +229,81 @@ void WifiStation::HandleScanResult() {
     StartConnect();
 }
 
+void WifiStation::StartScan() {
+    esp_wifi_scan_start(nullptr, false);
+    if (on_scan_begin_) {
+        on_scan_begin_();
+    }
+}
+
+bool WifiStation::TryFastConnect() {
+    nvs_handle_t nvs;
+    if (nvs_open("wifi", NVS_READONLY, &nvs) != ESP_OK) {
+        return false;
+    }
+    LastApRecord last = {};
+    size_t size = sizeof(last);
+    esp_err_t err = nvs_get_blob(nvs, LAST_AP_NVS_KEY, &last, &size);
+    nvs_close(nvs);
+    if (err != ESP_OK || size != sizeof(last) || last.channel == 0) {
+        return false;
+    }
+    last.ssid[sizeof(last.ssid) - 1] = '\0';
+
+    // Only use it if the SSID is still configured (the password comes from there)
+    auto ssid_list = SsidManager::GetInstance().GetSsidList();
+    auto it = std::find_if(ssid_list.begin(), ssid_list.end(), [&last](const SsidItem& item) {
+        return item.ssid == last.ssid;
+    });
+    if (it == ssid_list.end()) {
+        return false;
+    }
+
+    ESP_LOGI(TAG, "Fast connect to last AP: %s, BSSID: %02x:%02x:%02x:%02x:%02x:%02x, Channel: %d",
+        last.ssid, last.bssid[0], last.bssid[1], last.bssid[2],
+        last.bssid[3], last.bssid[4], last.bssid[5], last.channel);
+    WifiApRecord record = {
+        .ssid = it->ssid,
+        .password = it->password,
+        .channel = last.channel,
+        .authmode = WIFI_AUTH_OPEN,  // Not used by StartConnect
+        .bssid = {0}
+    };
+    memcpy(record.bssid, last.bssid, 6);
+    connect_queue_.clear();
+    connect_queue_.push_back(record);
+    fast_connecting_ = true;
+    StartConnect();
+    return true;
+}
+
+void WifiStation::SaveLastAp() {
+    wifi_ap_record_t ap_info;
+    if (esp_wifi_sta_get_ap_info(&ap_info) != ESP_OK) {
+        return;
+    }
+    LastApRecord record = {};
+    strncpy(record.ssid, ssid_.c_str(), sizeof(record.ssid) - 1);
+    memcpy(record.bssid, ap_info.bssid, 6);
+    record.channel = ap_info.primary;
+
+    nvs_handle_t nvs;
+    if (nvs_open("wifi", NVS_READWRITE, &nvs) != ESP_OK) {
+        return;
+    }
+    // Skip the flash write when nothing changed
+    LastApRecord saved = {};
+    size_t size = sizeof(saved);
+    if (nvs_get_blob(nvs, LAST_AP_NVS_KEY, &saved, &size) != ESP_OK ||
+        size != sizeof(saved) || memcmp(&saved, &record, sizeof(record)) != 0) {
+        if (nvs_set_blob(nvs, LAST_AP_NVS_KEY, &record, sizeof(record)) == ESP_OK) {
+            nvs_commit(nvs);
+            ESP_LOGI(TAG, "Saved last AP for fast connect (channel %d)", record.channel);
+        }
+    }
+    nvs_close(nvs);
+}
+
 void WifiStation::StartConnect() {
     auto ap_record = connect_queue_.front();
     connect_queue_.erase(connect_queue_.begin());
@@ -234,7 +319,7 @@ void WifiStation::StartConnect() {
     strcpy((char *)wifi_config.sta.ssid, ap_record.ssid.c_str());
     strcpy((char *)wifi_config.sta.password, ap_record.password.c_str());
 
-    if (remember_bssid_) {
+    if (remember_bssid_ || fast_connecting_) {
         // Explicit opt-in: pin to this exact AP (BSSID + channel) for the fastest
         // reconnect. This intentionally disables roaming between same-SSID APs.
         wifi_config.sta.channel = ap_record.channel;
@@ -340,9 +425,8 @@ void WifiStation::UpdateScanInterval() {
 void WifiStation::WifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
     auto* this_ = static_cast<WifiStation*>(arg);
     if (event_id == WIFI_EVENT_STA_START) {
-        esp_wifi_scan_start(nullptr, false);
-        if (this_->on_scan_begin_) {
-            this_->on_scan_begin_();
+        if (!this_->TryFastConnect()) {
+            this_->StartScan();
         }
     } else if (event_id == WIFI_EVENT_SCAN_DONE) {
         xEventGroupSetBits(this_->event_group_, WIFI_EVENT_SCAN_DONE_BIT);
@@ -357,6 +441,15 @@ void WifiStation::WifiEventHandler(void* arg, esp_event_base_t event_base, int32
         ESP_LOGI(TAG, "WiFi disconnected, reason: %d", event->reason);
         if (was_connected && this_->on_disconnected_) {
             this_->on_disconnected_(event->reason);
+        }
+
+        // Fast connect to the last AP failed (moved, AP gone, ...): fall back to a full scan
+        if (this_->fast_connecting_) {
+            this_->fast_connecting_ = false;
+            this_->connect_queue_.clear();
+            ESP_LOGW(TAG, "Fast connect failed, falling back to scan");
+            this_->StartScan();
+            return;
         }
         
         if (this_->reconnect_count_ < MAX_RECONNECT_COUNT) {
@@ -395,6 +488,8 @@ void WifiStation::IpEventHandler(void* arg, esp_event_base_t event_base, int32_t
     }
     this_->connect_queue_.clear();
     this_->reconnect_count_ = 0;
+    this_->fast_connecting_ = false;
+    this_->SaveLastAp();
     
     // Reset scan interval to minimum for fast reconnect if disconnected later
     this_->scan_current_interval_microseconds_ = this_->scan_min_interval_microseconds_;

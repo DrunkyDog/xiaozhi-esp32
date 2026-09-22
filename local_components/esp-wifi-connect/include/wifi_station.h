@@ -89,9 +89,14 @@ private:
     std::function<void()> on_scan_begin_;
     std::vector<WifiApRecord> connect_queue_;
     bool was_connected_ = false;  // Track if we were connected before disconnection
+    bool fast_connecting_ = false;  // Connecting to the last AP from NVS without scanning
+
 
     void HandleScanResult();
     void StartConnect();
+    bool TryFastConnect();  // Connect to the last AP saved in NVS, skipping the scan
+    void SaveLastAp();      // Save the AP we are connected to for the next boot
+    void StartScan();
     void UpdateScanInterval();  // Exponential backoff for scan interval
     static void WifiEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
     static void IpEventHandler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);

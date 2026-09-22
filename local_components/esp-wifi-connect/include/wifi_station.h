@@ -90,6 +90,7 @@ private:
     std::vector<WifiApRecord> connect_queue_;
     bool was_connected_ = false;  // Track if we were connected before disconnection
     bool fast_connecting_ = false;  // Connecting to the last AP from NVS without scanning
+    bool fast_retried_ = false;     // Fast connect already retried once after a transient failure
 
 
     void HandleScanResult();

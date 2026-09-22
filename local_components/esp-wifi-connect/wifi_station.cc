@@ -96,6 +96,7 @@ void WifiStation::Stop() {
     // Reset was_connected_ flag to prevent stale state from affecting subsequent sessions
     was_connected_ = false;
     fast_connecting_ = false;
+    fast_retried_ = false;
 
     // Clear connected bit
     xEventGroupClearBits(event_group_, WIFI_EVENT_CONNECTED);
@@ -273,6 +274,7 @@ bool WifiStation::TryFastConnect() {
     connect_queue_.clear();
     connect_queue_.push_back(record);
     fast_connecting_ = true;
+    fast_retried_ = false;
     StartConnect();
     return true;
 }
@@ -443,8 +445,19 @@ void WifiStation::WifiEventHandler(void* arg, esp_event_base_t event_base, int32
             this_->on_disconnected_(event->reason);
         }
 
-        // Fast connect to the last AP failed (moved, AP gone, ...): fall back to a full scan
+        // Fast connect to the last AP failed. A timeout while the AP is still there
+        // (e.g. it has not dropped our previous association yet) is worth one more
+        // try; anything else (AP not found, moved, ...) falls back to a full scan.
         if (this_->fast_connecting_) {
+            bool transient = event->reason == WIFI_REASON_AUTH_EXPIRE ||
+                             event->reason == WIFI_REASON_DISASSOC_DUE_TO_INACTIVITY ||  // 4: assoc timed out
+                             event->reason == WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT;
+            if (transient && !this_->fast_retried_) {
+                this_->fast_retried_ = true;
+                ESP_LOGW(TAG, "Fast connect failed (reason %d), retrying once", event->reason);
+                esp_wifi_connect();
+                return;
+            }
             this_->fast_connecting_ = false;
             this_->connect_queue_.clear();
             ESP_LOGW(TAG, "Fast connect failed, falling back to scan");

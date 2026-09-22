@@ -329,7 +329,7 @@ void Application::HandleActivationDoneEvent() {
     // Release OTA object after activation is complete
     ota_.reset();
     auto& board = Board::GetInstance();
-    board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
+    board.SetPowerSaveLevel(PowerSaveLevel::BALANCED);
 
     Schedule([this]() {
         // Play the success sound to indicate the device is ready
@@ -396,7 +396,7 @@ void Application::CheckAssetsVersion() {
                 });
             });
 
-        board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
+        board.SetPowerSaveLevel(PowerSaveLevel::BALANCED);
         vTaskDelay(pdMS_TO_TICKS(1000));
 
         if (!success) {
@@ -532,7 +532,7 @@ void Application::InitializeProtocol() {
     });
 
     protocol_->OnAudioChannelClosed([this, &board]() {
-        board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);
+        board.SetPowerSaveLevel(PowerSaveLevel::BALANCED);
         Schedule([this]() {
             auto display = Board::GetInstance().GetDisplay();
             display->SetChatMessage("system", "");
@@ -1076,7 +1076,7 @@ bool Application::UpgradeFirmware(const std::string& url, const std::string& ver
         ESP_LOGE(TAG,
                  "Firmware upgrade failed, restarting audio service and continuing operation...");
         audio_service_.Start();                              // Restart audio service
-        board.SetPowerSaveLevel(PowerSaveLevel::LOW_POWER);  // Restore power save level
+        board.SetPowerSaveLevel(PowerSaveLevel::BALANCED);  // Restore power save level
         Alert(Lang::Strings::ERROR, Lang::Strings::UPGRADE_FAILED, "cancel",
               Lang::Sounds::OGG_EXCLAMATION);
         vTaskDelay(pdMS_TO_TICKS(3000));

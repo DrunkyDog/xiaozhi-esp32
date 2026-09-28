@@ -133,7 +133,7 @@ size_t OggDemuxer::Process(const uint8_t* data, size_t size)
                 
                 // 验证页头
                 if (ctx_.header[4] != 0) {
-                    ESP_LOGE(TAG, "无效的Ogg版本: %d", ctx_.header[4]);
+                    ESP_LOGE(TAG, "Invalid Ogg version: %d", ctx_.header[4]);
                     state_ = ParseState::FIND_PAGE;
                     ctx_.bytes_needed = 4;
                     ctx_.data_offset = 0;
@@ -151,7 +151,7 @@ size_t OggDemuxer::Process(const uint8_t* data, size_t size)
                     ctx_.bytes_needed = 4;
                     ctx_.data_offset = 0;
                 } else {
-                    ESP_LOGE(TAG, "无效的段数: %u", ctx_.seg_count);
+                    ESP_LOGE(TAG, "Invalid segment count: %u", ctx_.seg_count);
                     state_ = ParseState::FIND_PAGE;
                     ctx_.bytes_needed = 4;
                     ctx_.data_offset = 0;
@@ -208,7 +208,7 @@ size_t OggDemuxer::Process(const uint8_t* data, size_t size)
                 
                 // 检查缓冲区是否足够
                 if (ctx_.packet_len + seg_len > sizeof(ctx_.packet_buf)) {
-                    ESP_LOGE(TAG, "包缓冲区溢出: %zu + %u > %zu", ctx_.packet_len, seg_len, sizeof(ctx_.packet_buf));
+                    ESP_LOGE(TAG, "Packet buffer overflow: %zu + %u > %zu", ctx_.packet_len, seg_len, sizeof(ctx_.packet_buf));
                     state_ = ParseState::FIND_PAGE;
                     ctx_.packet_len = 0;
                     ctx_.packet_continued = false;
@@ -271,7 +271,7 @@ size_t OggDemuxer::Process(const uint8_t* data, size_t size)
                                 on_demuxer_finished_(ctx_.packet_buf, opus_info_.sample_rate, ctx_.packet_len);
                             }
                         } else {
-                            ESP_LOGW(TAG, "当前Ogg容器未解析到OpusHead/OpusTags，丢弃");
+                            ESP_LOGW(TAG, "OpusHead/OpusTags not found in Ogg stream, dropping packet");
                         }
                     }
                     ctx_.packet_len = 0;
@@ -287,7 +287,7 @@ size_t OggDemuxer::Process(const uint8_t* data, size_t size)
             if (ctx_.seg_index == ctx_.seg_count) {
                 // 检查是否所有数据体都已读取
                 if (ctx_.body_offset < ctx_.body_size) {
-                    ESP_LOGW(TAG, "数据体不完整: %zu/%zu", 
+                    ESP_LOGW(TAG, "Incomplete page body: %zu/%zu", 
                             ctx_.body_offset, ctx_.body_size);
                 }
                 

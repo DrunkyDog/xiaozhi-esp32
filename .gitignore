@@ -26,3 +26,16 @@ custom-assets/*.bak-*
 
 # Ad-hoc sdkconfig backups, e.g. sdkconfig.bak-wakeword
 sdkconfig.bak-*
+
+# Full flash dumps (contain NVS: WiFi credentials) - never commit
+backups/
+# Separate build worktrees
+.worktrees/
+# Firmware extraction / release outputs: keep scripts & docs, not images or source copies
+alice-split/00_merged/
+alice-split/01_flash_images/
+alice-split/02_assets_unpacked/
+alice-split/03_source_by_group/
+bin_file_for_flash-least/
+voice-app-v2.5.0-th/*.bin
+**/__pycache__/

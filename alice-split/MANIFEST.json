@@ -1,0 +1,1277 @@
+{
+ "merged": "alice-split/00_merged/alice-merged.bin",
+ "merged_sha256": "c472f5759221bee5221cd76c4f3926bcbf0d2cd2fd1c755f0c9a555a870bd132",
+ "partition_table": [
+  {
+   "name": "nvs",
+   "type": 1,
+   "subtype": 2,
+   "offset": 36864,
+   "size": 16384
+  },
+  {
+   "name": "otadata",
+   "type": 1,
+   "subtype": 0,
+   "offset": 53248,
+   "size": 8192
+  },
+  {
+   "name": "phy_init",
+   "type": 1,
+   "subtype": 1,
+   "offset": 61440,
+   "size": 4096
+  },
+  {
+   "name": "ota_0",
+   "type": 0,
+   "subtype": 16,
+   "offset": 131072,
+   "size": 4128768
+  },
+  {
+   "name": "ota_1",
+   "type": 0,
+   "subtype": 17,
+   "offset": 4259840,
+   "size": 4128768
+  },
+  {
+   "name": "assets",
+   "type": 1,
+   "subtype": 130,
+   "offset": 8388608,
+   "size": 8388608
+  }
+ ],
+ "images": [
+  {
+   "file": "0x000000_bootloader.bin",
+   "offset": "0x0",
+   "size": 16704,
+   "sha256": "554b229ae082d4f8ad8dea00e4e381a91e6f8301dfa2dbe2669e289aa96dab9e"
+  },
+  {
+   "file": "0x008000_partition-table.bin",
+   "offset": "0x8000",
+   "size": 3072,
+   "sha256": "4811619cacae08ef2e0e71b7220c6033a346ca5da7ca179082408c963ef530b5"
+  },
+  {
+   "file": "0x00d000_ota_data_initial.bin",
+   "offset": "0xd000",
+   "size": 8192,
+   "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f"
+  },
+  {
+   "file": "0x020000_xiaozhi.bin",
+   "offset": "0x20000",
+   "size": 3160960,
+   "sha256": "111ca2539c65622eaa77f324c4692881326f0c6451c0842153b3d895b023c528"
+  },
+  {
+   "file": "0x800000_generated_assets.bin",
+   "offset": "0x800000",
+   "size": 2985797,
+   "sha256": "9e29718bc073ad973e8e15c07ddf76bab08fce4888595d016a139214a3ae38e9"
+  }
+ ],
+ "blank_regions_all_0xFF": {
+  "nvs": true,
+  "phy_init": true,
+  "ota_1": true
+ },
+ "assets": [
+  {
+   "name": "font_noto_sans_common_30_4.bin",
+   "size": 2609092
+  },
+  {
+   "name": "srmodels.bin",
+   "size": 291038
+  },
+  {
+   "name": "index.json",
+   "size": 2053
+  },
+  {
+   "name": "angry.png",
+   "size": 3657
+  },
+  {
+   "name": "confident.png",
+   "size": 3735
+  },
+  {
+   "name": "confused.png",
+   "size": 3622
+  },
+  {
+   "name": "cool.png",
+   "size": 3591
+  },
+  {
+   "name": "crying.png",
+   "size": 4368
+  },
+  {
+   "name": "delicious.png",
+   "size": 4044
+  },
+  {
+   "name": "embarrassed.png",
+   "size": 4255
+  },
+  {
+   "name": "funny.png",
+   "size": 4570
+  },
+  {
+   "name": "happy.png",
+   "size": 3591
+  },
+  {
+   "name": "kissy.png",
+   "size": 3992
+  },
+  {
+   "name": "laughing.png",
+   "size": 4276
+  },
+  {
+   "name": "loving.png",
+   "size": 4019
+  },
+  {
+   "name": "neutral.png",
+   "size": 3256
+  },
+  {
+   "name": "relaxed.png",
+   "size": 3775
+  },
+  {
+   "name": "sad.png",
+   "size": 3641
+  },
+  {
+   "name": "shocked.png",
+   "size": 4316
+  },
+  {
+   "name": "silly.png",
+   "size": 3920
+  },
+  {
+   "name": "sleepy.png",
+   "size": 4044
+  },
+  {
+   "name": "surprised.png",
+   "size": 3707
+  },
+  {
+   "name": "thinking.png",
+   "size": 4322
+  },
+  {
+   "name": "winking.png",
+   "size": 3797
+  }
+ ],
+ "sources": [
+  {
+   "group": "01_Core",
+   "path": "main/application.cc",
+   "compiled": true,
+   "sha256": "d8cf703f018a1880534478c81afe88cfabf17e64aa193fde9f05e52c63cb89f3"
+  },
+  {
+   "group": "01_Core",
+   "path": "main/application.h",
+   "compiled": false,
+   "sha256": "5bf4f604cbb22d5dadc76b7bf581760958dbc626b432e708a19761123d990203"
+  },
+  {
+   "group": "06_Apps",
+   "path": "main/apps/airports_data.h",
+   "compiled": false,
+   "sha256": "1d4580bc3f99842d6482b09d93ca1b8476100d8a58ef49993483f77fdcb70812"
+  },
+  {
+   "group": "06_Apps",
+   "path": "main/apps/csi_sensor.cc",
+   "compiled": true,
+   "sha256": "6c23c0d07fd6aa25f303733ecf1dfe45b98ed9e66a0257473f0068d873fabe0c"
+  },
+  {
+   "group": "06_Apps",
+   "path": "main/apps/csi_sensor.h",
+   "compiled": false,
+   "sha256": "580aed286a70abb4cef227161a2e9b0b325e016a6bd8c3b85e4cd71b64044edf"
+  },
+  {
+   "group": "06_Apps",
+   "path": "main/apps/flight_radar_app.cc",
+   "compiled": true,
+   "sha256": "a287ea89a91fbd32d6a7d6cfc29e52ad6532920d9b559e410b512e6ae950a27b"
+  },
+  {
+   "group": "06_Apps",
+   "path": "main/apps/flight_radar_app.h",
+   "compiled": false,
+   "sha256": "232d2520b9a469ad99dbe5050a178f5cc4f27d27fced711aceaed35d8b9f3470"
+  },
+  {
+   "group": "06_Apps",
+   "path": "main/apps/radar_app.cc",
+   "compiled": true,
+   "sha256": "50a9f9af362a3cde745c35ba1537f8e9d26a5c530e2dbc3c8d9e512d560bcd86"
+  },
+  {
+   "group": "06_Apps",
+   "path": "main/apps/radar_app.h",
+   "compiled": false,
+   "sha256": "ee86ea85c0bace3e9312218c2e9f3d61944088fe1df8a71feb177a505991fe3f"
+  },
+  {
+   "group": "06_Apps",
+   "path": "main/apps/radar_scope.cc",
+   "compiled": true,
+   "sha256": "e7d4f6ad2f0d0207d79f2cffb2d7a21cc0da09880228207b6050c831af153d03"
+  },
+  {
+   "group": "06_Apps",
+   "path": "main/apps/radar_scope.h",
+   "compiled": false,
+   "sha256": "f46e78faed5d7bcb0c041d3f65366ecd3ff7ad388126c1d6759ebe71b6103c01"
+  },
+  {
+   "group": "06_Apps",
+   "path": "main/apps/sd_card.cc",
+   "compiled": true,
+   "sha256": "c1b9f9003df55aa9d72466e4b2de7a8b9e5e0b20bde5de343cc3c8caf0b15a7f"
+  },
+  {
+   "group": "06_Apps",
+   "path": "main/apps/sd_card.h",
+   "compiled": false,
+   "sha256": "c6abe09f8fe474d57f7e7c77ce098e21cceb1cc9b08ee0fd034d6b4fe902c692"
+  },
+  {
+   "group": "01_Core",
+   "path": "main/assets.cc",
+   "compiled": true,
+   "sha256": "2220fa2d24ebdc2ddcef4d438f3a2a6c3ef0647c084def921354ac5ff5f739a9"
+  },
+  {
+   "group": "01_Core",
+   "path": "main/assets.h",
+   "compiled": false,
+   "sha256": "3c6358638230b8db781d41c33d058c22bcf10f454f0d7a97d577d01bef509c58"
+  },
+  {
+   "group": "01_Core",
+   "path": "main/assets/lang_config.h",
+   "compiled": false,
+   "sha256": "10d00807072d7fa1514e433d73b24cad69a5f70291cc17c057e5ecb476041a06"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/audio_codec.cc",
+   "compiled": true,
+   "sha256": "2dafab53ce88f6aa66ff0cc51eb23da73dac8f034276636c3cf491e304443072"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/audio_codec.h",
+   "compiled": false,
+   "sha256": "6f6d681762a9f5c556fe45de69df92f29c39b116dad82e8a9f7ea5c88cd95858"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/audio_debugger.cc",
+   "compiled": true,
+   "sha256": "7561fbf034f17fa826c1b5032a9116716034f9d5460a906d7101de0b52d103d1"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/audio_debugger.h",
+   "compiled": false,
+   "sha256": "c390475414e47bd352748ae5706f524ec4d2c5cc2928c982c0ea6c9150edfa0f"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/audio_engine.h",
+   "compiled": false,
+   "sha256": "c922f02c89ef8c4fe511f17e1b1a523a078f7a159e5b030850ac0ebc903c916e"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/audio_service.cc",
+   "compiled": true,
+   "sha256": "bf2cb0402d97b94ec7d139f540d0f36184245892c9875d0e460b44aaac804858"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/audio_service.h",
+   "compiled": false,
+   "sha256": "347920d2c45b3ec8795627bd4b04b75f89bb982285cafd5db02ecb843e2ce247"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/codecs/box_audio_codec.cc",
+   "compiled": true,
+   "sha256": "a3698b694662fca17e987e1a76e3bc89a594b0d7ccbb0a8b2a09a8d72a114619"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/codecs/box_audio_codec.h",
+   "compiled": false,
+   "sha256": "caec700dfb4ab6caacf5023b945f3285c7d5cc919c10b4582e847ba3026bfc88"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/codecs/dummy_audio_codec.cc",
+   "compiled": true,
+   "sha256": "2654e0f3f18c86b6e706df7f7da1798e939edfbaa67c7667a07b97553dd90cc4"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/codecs/dummy_audio_codec.h",
+   "compiled": false,
+   "sha256": "1cca52d668a1e441d145e78127b8d8d1c2caba5907da2533f6b10e2640656e2f"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/codecs/es8311_audio_codec.cc",
+   "compiled": true,
+   "sha256": "65a2d2e3da44abd7ac5cda7889a41dc3884d13e91cecbbcd623947ff14f44213"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/codecs/es8311_audio_codec.h",
+   "compiled": false,
+   "sha256": "1560882643f30da283381f25c368ece60e1eea84739265a671921c80926ac4be"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/codecs/es8374_audio_codec.cc",
+   "compiled": true,
+   "sha256": "2d691329b968c5857c4c54f336c58f451edbbb72eaac77e33a794726e0808e58"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/codecs/es8374_audio_codec.h",
+   "compiled": false,
+   "sha256": "4b1ec8607ba4e204d6ee3642a8f43138efddfb347f6864ec860b008999e38e14"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/codecs/es8388_audio_codec.cc",
+   "compiled": true,
+   "sha256": "328f810fbca3b47503c1034a359afc99553e5d85e13c884c33cb49534fbc9c2c"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/codecs/es8388_audio_codec.h",
+   "compiled": false,
+   "sha256": "775a374ade47ae43cf64b3e2b0dfb213d4c82beb7fde23c9d778ffc1680827bc"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/codecs/es8389_audio_codec.cc",
+   "compiled": true,
+   "sha256": "5b6fcb80df4786d1b9cbc84e4183b4e28096bf93b4cb0e0448795cbf31a0ee5c"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/codecs/es8389_audio_codec.h",
+   "compiled": false,
+   "sha256": "2b2c9a48dc2697a3271773099649264076c3890066826a3570fe640c523422ad"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/codecs/no_audio_codec.cc",
+   "compiled": true,
+   "sha256": "c7bec835355f56ce5ecd1589bc14acced2251989d0eaa2c388364662c2d4fcf1"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/codecs/no_audio_codec.h",
+   "compiled": false,
+   "sha256": "5c8e83d329ebabd796306a931787b4003828dff21b57b491d8a24813feb136bf"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/demuxer/ogg_demuxer.cc",
+   "compiled": true,
+   "sha256": "873872040fe35e25556fc6751311d8af3b4d25666bebb995a9e8da656ececb51"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/demuxer/ogg_demuxer.h",
+   "compiled": false,
+   "sha256": "176c81b8c65bcafdd7129c837facafb917d61e3c4d30ca68ac48c8e5ee621251"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/engines/afe_audio_engine.cc",
+   "compiled": true,
+   "sha256": "b6bc70895420529efece8682ac58082ef350d3642011e9f3229bd075a0f64597"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/engines/afe_audio_engine.h",
+   "compiled": false,
+   "sha256": "f9acc30c2f67007f7a824526db4bba64c95f41d75acfca7a3c938a76da38b969"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/engines/lite_audio_engine.h",
+   "compiled": false,
+   "sha256": "e71e8977019ec3d64fd62f1f1de1794d5d16b9c8296c6590d99b9842a2b8db14"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/wake_word.h",
+   "compiled": false,
+   "sha256": "358ec30c492d71c1a5d1d96828a38704804ddacff79a8a093a1cfc9824176d37"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/wake_words/custom_wake_word.cc",
+   "compiled": true,
+   "sha256": "f0cbc7688b8f7360e2750206f8f6de36a96a71468bf71e2241e4883431b4e118"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/wake_words/custom_wake_word.h",
+   "compiled": false,
+   "sha256": "9c0cf3bb810acd30c8305e810ba935a44c65f75366ed32a02c82e5356e52f81e"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/wake_words/wake_word_audio_cache.cc",
+   "compiled": true,
+   "sha256": "13fcea64fdf02f2f2e6e921155078c67b1d921004fe1710beaa51c50a8db6f04"
+  },
+  {
+   "group": "03_Audio",
+   "path": "main/audio/wake_words/wake_word_audio_cache.h",
+   "compiled": false,
+   "sha256": "624158e83d0dd2d13d7cf5a607fadb0c0e5b85528e062516607e1a143a24d2d6"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/adc_battery_monitor.cc",
+   "compiled": true,
+   "sha256": "2a3744eac0da6822dce032564e392dd3384a1e68577cf9640394e0ec0afdfc82"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/adc_battery_monitor.h",
+   "compiled": false,
+   "sha256": "9235d2fb4f559c81bb1f8ce899c00c932b2f1fd970765e5cdf3e1fa25ea58c59"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/afsk_demod.cc",
+   "compiled": true,
+   "sha256": "aa2c5d9e294135dae8c7103e8f8acbb634049ab3ccc60084005fd468377e5a18"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/afsk_demod.h",
+   "compiled": false,
+   "sha256": "b4936395b86c5b1693b82491513d0dcb20325f4db6ccadce4d1af28bdb02701f"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/axp2101.cc",
+   "compiled": true,
+   "sha256": "c7cc0f2ad67c7c6819ac5c150a2df8741b62af4d73c66b0cace56e0f5a2bd623"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/axp2101.h",
+   "compiled": false,
+   "sha256": "e40888856553192a96857496521a7ece4d8eb429d3083fe7f692664ba2985d68"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/backlight.cc",
+   "compiled": true,
+   "sha256": "efd7130bf61c9ae99b79233f1727f234634d9c6e2ec8f1ebb9f38bd8fb0c63e0"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/backlight.h",
+   "compiled": false,
+   "sha256": "2667321c8ff2df9d2badf86edd69872dd27f9b454f1f1cf4c24817f3c0d16d40"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/blufi.h",
+   "compiled": false,
+   "sha256": "6b4bd13226fa2095a7fe0bd80e8b00638567467d9ff4dbc7a38e76eb78875dc1"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/board.cc",
+   "compiled": true,
+   "sha256": "3d2a47138619234b2700659fe762e9b34a3aca02ee73d35ea5d43ba22cc18b6d"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/board.h",
+   "compiled": false,
+   "sha256": "b5e93fd49bdeb0365037732a4e034ce15ce4e224f53b114abf07b61cadcc35ec"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/button.cc",
+   "compiled": true,
+   "sha256": "cfd4b3c71bca4c893bec51eead36413eed7a7b2f60fb47645571ccfc50281554"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/button.h",
+   "compiled": false,
+   "sha256": "bc60ce514695445c7e9d44e217d00c74310d434d7f2455d88e332e8c5d206b9e"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/camera.h",
+   "compiled": false,
+   "sha256": "fd03929d6d27760b16d391aa965008261fa8f866a2198780a8b8b5dfb4d6fb21"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/dual_network_board.cc",
+   "compiled": true,
+   "sha256": "85683b37d9da8c879c3dfc97582ae201625e73d1b6de370e69826f91e9b4f6dd"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/dual_network_board.h",
+   "compiled": false,
+   "sha256": "daafb3b4ed1f72f48d2fb54a5fa3587b2c2ee7e992b45700e6f5a69155e64b3c"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/esp32_camera.cc",
+   "compiled": true,
+   "sha256": "34b4b374f4d6a0b521ef8ff8d684647a8e2406e10380e7e2f96c168910d44788"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/esp32_camera.h",
+   "compiled": false,
+   "sha256": "b86bcbcd967e5a87df370647fec1129618ee134d575d18a01ae3a82f40531640"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/i2c_device.cc",
+   "compiled": true,
+   "sha256": "a04d00151831cac8fe0914084d63f77b389c45e0ac86a35e25b3bcc190d3fb0b"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/i2c_device.h",
+   "compiled": false,
+   "sha256": "9bafca1c0e7f5ad28009873f56104a8cdc7ef01c377d433d6ecbcfbf762edbd1"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/knob.cc",
+   "compiled": true,
+   "sha256": "6a6abc50c992d524326741f2750ef2f01a5aaff3be69ddb088184668caefe14f"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/knob.h",
+   "compiled": false,
+   "sha256": "90e933814cf01ab9d1e72a41a9a0c69e1f75239c93361eab8f998d699048e886"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/ml307_board.cc",
+   "compiled": true,
+   "sha256": "51d107f437965bc72dd9b0a1c1bef1cfa6d56a2285fcb7cfa50cd54dfd34a377"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/ml307_board.h",
+   "compiled": false,
+   "sha256": "018f9e81392460d816c69d883c0985ba036127b3f0f4d18a33a4b7da54b0b9dc"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/nt26_board.cc",
+   "compiled": true,
+   "sha256": "e0fe70b5df1e68d88e7290da9a76a2f1aa44accfb04d68e13eda46ba860c8dd1"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/nt26_board.h",
+   "compiled": false,
+   "sha256": "b8f0821b9f00dc1f8eb59a6e0af2d21478318feea1792a488dd558975250e56c"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/power_save_timer.cc",
+   "compiled": true,
+   "sha256": "01b87695d004ed0f7dc76be0e91633a548727b342124bb78401396d5dcf432ae"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/power_save_timer.h",
+   "compiled": false,
+   "sha256": "7e42122ff3e11e4933e07fe86bd8ec8cc4232c78327b334099b0cbf997196c83"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/press_to_talk_mcp_tool.cc",
+   "compiled": true,
+   "sha256": "1a5950505f0c1f7af4d34dac12e3bb7b554369be2cf04517b40b71a9d703bf41"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/press_to_talk_mcp_tool.h",
+   "compiled": false,
+   "sha256": "dbd270debafacbe68c4bb6d34dc22c23106ccd65a63df7a7f8d3bece05ec98a3"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/rndis_board.cc",
+   "compiled": true,
+   "sha256": "0e43959333683609aeeb21f110155381c622cb7a4f381f560af395c372b8f29c"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/rndis_board.h",
+   "compiled": false,
+   "sha256": "a79b4fed609750810c74d103b1e984037081e22d8ae61ea536b3ced4e6192642"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/sleep_timer.cc",
+   "compiled": true,
+   "sha256": "5b611bc9b30a06f3fc519b71c4897a3f59e7d13614c669d49afcca1b5abc17c0"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/sleep_timer.h",
+   "compiled": false,
+   "sha256": "aec09cd8ba6377396f02bec5696f29a28e16bf725a8c5840eb49ba86f6ee3a9d"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/sy6970.cc",
+   "compiled": true,
+   "sha256": "7eab82501399c2cd86ce1d906f805fbdfabf856f0246cc6e7af01fb97093f55e"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/sy6970.h",
+   "compiled": false,
+   "sha256": "6e63a66b5053738659e19b60dc42e612c7be9f4bb53c4a439dc2a15c9c3762a3"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/system_reset.cc",
+   "compiled": true,
+   "sha256": "9c6fd28ef0880211b41ed1588c0202b50937a7c9eeb649c3813176cbd6347042"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/system_reset.h",
+   "compiled": false,
+   "sha256": "d737878f577fd813a9c6107f66a6dc137109bb4e60803e3fe9f2dbb93e305bab"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/wifi_board.cc",
+   "compiled": true,
+   "sha256": "5bbb675659696fa43e821ee58cc8aca27949ddc0f928c8e7f670038590b005d7"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/common/wifi_board.h",
+   "compiled": false,
+   "sha256": "e92ad222d897e6bf1c1e7b52d80b7ef8b3b8a2648ee5f0e31fffba6939e3fbe9"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/waveshare/esp32-s3-touch-amoled-2.06/config.h",
+   "compiled": false,
+   "sha256": "dc8ae300614e60de4df74f833d02c379bd1f550ce417c28d17c67013b07bd894"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/boards/waveshare/esp32-s3-touch-amoled-2.06/esp32-s3-touch-amoled-2.06.cc",
+   "compiled": true,
+   "sha256": "896a91fb5dc4f77ddde2c963589f7c2e7baab3ddc57486adf6603cfdfe555fe1"
+  },
+  {
+   "group": "01_Core",
+   "path": "main/device_state.h",
+   "compiled": false,
+   "sha256": "6dc619cadeac476941977ce73aeb6e5146a69e64120a0200fce9c64bbdc6a6f8"
+  },
+  {
+   "group": "01_Core",
+   "path": "main/device_state_machine.cc",
+   "compiled": true,
+   "sha256": "c1167dc89493d275de3a9b267eb67bff171404613192e5daca6dc3eb65443ba5"
+  },
+  {
+   "group": "01_Core",
+   "path": "main/device_state_machine.h",
+   "compiled": false,
+   "sha256": "f39b979d76650468fa1f0b7ab651b36bb2e902982cd7417b7c634cd85931ac42"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/display.cc",
+   "compiled": true,
+   "sha256": "6b27944b49e2ce8d95a0a4682f986923c54db33d4f0ee4c2e58b6bb44f2b3efc"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/display.h",
+   "compiled": false,
+   "sha256": "1711f57d7ec368ecb2c3ee9278777c1ddf21157c7a4e0342b5ab1c0b9c0324eb"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/emote_display.cc",
+   "compiled": true,
+   "sha256": "f6be75bcc871eaf3e018aa8e86c40da8bf0317daa0c96412c1d8af551a2e42c7"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/emote_display.h",
+   "compiled": false,
+   "sha256": "db1b66161e0d19cfe9d9d68591162b6f49b02203ff7b2593fafeb0e555fddf0a"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lcd_display.cc",
+   "compiled": true,
+   "sha256": "4f4283b7690e5eb8af2682c88b6861ded562a65de0b50cafee8b82b213f66351"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lcd_display.h",
+   "compiled": false,
+   "sha256": "cfc7b003cb784cfc5d89effbac9ca963964b48f4cdb69d86eddb972da7686d04"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/dynamic_glyph_cache.cc",
+   "compiled": true,
+   "sha256": "f0b9b34784323eaf348c2ffa81c8a1f6a7472a6baf4420ab28fc61c6b1ca9ce1"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/dynamic_glyph_cache.h",
+   "compiled": false,
+   "sha256": "036e3bd18cd871603b8de6386707162f20bb348bdb65ef8a0edbcc525b6ee11e"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/emoji_collection.cc",
+   "compiled": true,
+   "sha256": "b6af5e9250c9bbcdfa64af6e9e5e19cad3f0cfe249d50a61aa49b4415ac4551e"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/emoji_collection.h",
+   "compiled": false,
+   "sha256": "6a17fd0c6db634a877648869d26f98d44d02999c5a75a96d61164cd4dfc6fe90"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/gif/gifdec.c",
+   "compiled": true,
+   "sha256": "147323f75b4a852c7586e52db1c734c955d674c850e5a29a5ed4928e74e15ae4"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/gif/gifdec.h",
+   "compiled": false,
+   "sha256": "ec010aab9da845ac0fc5e83fcdbd6d66af568f3968fe2dadf7d2caaf46151d1d"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/gif/gifdec_mve.h",
+   "compiled": false,
+   "sha256": "ca5dd04085fe795e3b33c9e61803f753e41fa6e697d6f079c95dc6be43638595"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/gif/lvgl_gif.cc",
+   "compiled": true,
+   "sha256": "a5ea5e932c3babe64676872df0ad8be5cbdf86606f7a253a971d5cad63ac5b0f"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/gif/lvgl_gif.h",
+   "compiled": false,
+   "sha256": "3416dce9faffa7918283dffbbec2bd3e8186d1a6b672bc9e1bb4e85a0920d0bb"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/jpg/image_to_jpeg.cpp",
+   "compiled": true,
+   "sha256": "b31f9ec0ecfdf5c6fe1dbe22ce8f6eb622708edfbf868545771761ffaa62b625"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/jpg/image_to_jpeg.h",
+   "compiled": false,
+   "sha256": "719d9a7eb32249482785ecf7df5a534cf4287f14600e3759a08f462956094041"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/jpg/jpeg_to_image.c",
+   "compiled": true,
+   "sha256": "08416b2e643624d823e91e94fbf8021c3c86e3977d69f11494778f97f8cedfa7"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/jpg/jpeg_to_image.h",
+   "compiled": false,
+   "sha256": "3d03eb5d2b87a77d0a8351914276988bbdb7c2ba4aaec014704b612b6e2b2855"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/lvgl_display.cc",
+   "compiled": true,
+   "sha256": "9584ed0da2fb97665ae952499644c9e7f068188ba5c63253c2cb0bb7270be0eb"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/lvgl_display.h",
+   "compiled": false,
+   "sha256": "5bf1a73f6c0b3af14c486ec361ea5aadc9385979162b43ad59dea23ca7430bc6"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/lvgl_font.cc",
+   "compiled": true,
+   "sha256": "f8194c62ccfe77df09ece37fd42c3981d26306399b6b01154a01e1c46b3312f6"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/lvgl_font.h",
+   "compiled": false,
+   "sha256": "12b257ddbde14fa491494d768d89cd71c3ad287e86dce40df3f26fe26e2219f3"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/lvgl_image.cc",
+   "compiled": true,
+   "sha256": "b736b586bc1cf502eea333fd591f7c5a72c80f60febad96cdc2b120b04c02d3f"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/lvgl_image.h",
+   "compiled": false,
+   "sha256": "7e5ab5536c82f19735a314daf5dd17bc8d6963a057399883281b2ed94350a732"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/lvgl_theme.cc",
+   "compiled": true,
+   "sha256": "d28c31a0a908a7c736b648e49e3583943e3b0e5d968cc5ea3baceeacb94511f6"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/lvgl_display/lvgl_theme.h",
+   "compiled": false,
+   "sha256": "58c3db29b6cb21896ca287af2d0b64d570e2ca452129d34f8bc8a54919c42556"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/oled_display.cc",
+   "compiled": true,
+   "sha256": "e8eced78648b0b498bad96a79ea9b7022fabdb614f13c1238355d4910d8666ad"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/oled_display.h",
+   "compiled": false,
+   "sha256": "ee5e34343d1bcea062c8619feed70e37d72d01038aae95aa0dac0ac2d4c98f8f"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/text_glyph.cc",
+   "compiled": true,
+   "sha256": "bf617248fa5952cbca12d9106c90ca832a620e29ed976abf4c1d7a81b6e3c7c5"
+  },
+  {
+   "group": "05_Display",
+   "path": "main/display/text_glyph.h",
+   "compiled": false,
+   "sha256": "3ae2a7bd60b6c9dfe93e739a469351f1e8d933b1e1c7af67e3f8b86f8249367a"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/led/circular_strip.cc",
+   "compiled": true,
+   "sha256": "fd63e791555f4bbb9498c6f6548137aa99cdc2ff25be083b21de59cc8179ef4a"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/led/circular_strip.h",
+   "compiled": false,
+   "sha256": "c9477853b515c023d95f45bc98ca9d4ab87d28800f2d8eeb621b7edf4b7c6aa4"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/led/gpio_led.cc",
+   "compiled": true,
+   "sha256": "df845f7e6556d1db7f2aacba073502c8a94e62cdc6e1d0f1cde89dbbe1b06fc8"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/led/gpio_led.h",
+   "compiled": false,
+   "sha256": "38ffed2ebd3d12705a8103bbeaa9e222a270abf922c0b163df5e05a05a3286fa"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/led/led.h",
+   "compiled": false,
+   "sha256": "81d322ab40fe726569d179c0d2fbbea8bf3bcc28f1e40828efed6099510a4014"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/led/single_led.cc",
+   "compiled": true,
+   "sha256": "4a54d6689bcd180dfa8d1ec99dbcf0510e4c90eae0bcd756d37ec5d0405c3f40"
+  },
+  {
+   "group": "02_Board",
+   "path": "main/led/single_led.h",
+   "compiled": false,
+   "sha256": "bad613b25945109fc870e7fa860924871ab137581bb1f9402b0f45bd1b248b11"
+  },
+  {
+   "group": "01_Core",
+   "path": "main/main.cc",
+   "compiled": true,
+   "sha256": "0494a55f2ce0d77cba635989a52bc68d7b0676340b7f9ae919693d6626e6f1e4"
+  },
+  {
+   "group": "01_Core",
+   "path": "main/mcp_server.cc",
+   "compiled": true,
+   "sha256": "dbcc31e1fc0d5b33073406e34b7024e578faa4a4daf35d8e4a14f38769f84c49"
+  },
+  {
+   "group": "01_Core",
+   "path": "main/mcp_server.h",
+   "compiled": false,
+   "sha256": "1f2de7eb6bd700ac26f62b9a4b43a3ccb240256b8df6f913ad7e3cc6d4bb3905"
+  },
+  {
+   "group": "01_Core",
+   "path": "main/ota.cc",
+   "compiled": true,
+   "sha256": "7b046477f51deace32169f177c69c368cb6a94294305910f62078410f43893cf"
+  },
+  {
+   "group": "01_Core",
+   "path": "main/ota.h",
+   "compiled": false,
+   "sha256": "df80a86f153d076a402f5fcf18bb2a388bb5dcba67859267998b47371307b31a"
+  },
+  {
+   "group": "04_Protocol",
+   "path": "main/protocols/mqtt_protocol.cc",
+   "compiled": true,
+   "sha256": "fc3e9c2bae4a18ac5e4725e758e07c4b3c4a39b3497769dbcc6fc25beebe8542"
+  },
+  {
+   "group": "04_Protocol",
+   "path": "main/protocols/mqtt_protocol.h",
+   "compiled": false,
+   "sha256": "4978a92cc1778fbd4cc34d765424f4ceef7526fd94f97205b70bfc77cce702a9"
+  },
+  {
+   "group": "04_Protocol",
+   "path": "main/protocols/protocol.cc",
+   "compiled": true,
+   "sha256": "9b42610253f5bd91c79e6ce5f1d4d7b34b01d6aa66f4eba38e5eabd2cd91dcae"
+  },
+  {
+   "group": "04_Protocol",
+   "path": "main/protocols/protocol.h",
+   "compiled": false,
+   "sha256": "98a3bfbf331ee0d337e1cdb07d23cc0407632faac98f5a6ce8aa88a947394bbf"
+  },
+  {
+   "group": "04_Protocol",
+   "path": "main/protocols/text_glyph_payload.cc",
+   "compiled": true,
+   "sha256": "c215074e4da41516dfecc37d0a3edbbc57a2c544bcae289d0cb3fc9b91213916"
+  },
+  {
+   "group": "04_Protocol",
+   "path": "main/protocols/text_glyph_payload.h",
+   "compiled": false,
+   "sha256": "ce6842c69cc08a5cb26a65af34ad11360a37d0c080f945c760f8f9ce7ce04b2f"
+  },
+  {
+   "group": "04_Protocol",
+   "path": "main/protocols/websocket_protocol.cc",
+   "compiled": true,
+   "sha256": "ea4f50e20fafc81d23cacf4d98c0a7d29bd4e39a0b91c120a08fe824d50fc620"
+  },
+  {
+   "group": "04_Protocol",
+   "path": "main/protocols/websocket_protocol.h",
+   "compiled": false,
+   "sha256": "273ac38ade4598b241988e66898e59521931ed03635aef354d6332aff9a21d95"
+  },
+  {
+   "group": "01_Core",
+   "path": "main/settings.cc",
+   "compiled": true,
+   "sha256": "bf0ca7df6906c698a1d4ab5f1238bfb37347ea54a25b170eab9c9b45804032bd"
+  },
+  {
+   "group": "01_Core",
+   "path": "main/settings.h",
+   "compiled": false,
+   "sha256": "54d36509087886db3d8d7b5c19a1692811d77304af4ab249b3a3a4a9c74872e7"
+  },
+  {
+   "group": "01_Core",
+   "path": "main/system_info.cc",
+   "compiled": true,
+   "sha256": "c5e60152eb5081ca754e30c64a1a719490e95a1b1ff9e0091ff9aa0406d6df26"
+  },
+  {
+   "group": "01_Core",
+   "path": "main/system_info.h",
+   "compiled": false,
+   "sha256": "3b3d708b27b3941becda73fd86d2542008dc9dbde3f1d797e429180ee9421ffc"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/locales/th-TH/0.ogg",
+   "compiled": true,
+   "sha256": "7e9b875cff503e3ccd34db5147eec5e5b24511f3254090a9a5f74416c407e3b3"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/locales/th-TH/1.ogg",
+   "compiled": true,
+   "sha256": "8a7b3463126803a68c66d8d68067a13a32d409584c79426b24b096ba9cadfbf5"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/locales/th-TH/2.ogg",
+   "compiled": true,
+   "sha256": "08466c9f5f3aaddbd6a1b4c16d281343e9760d9f439c71bd4ad5dff5151594cd"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/locales/th-TH/3.ogg",
+   "compiled": true,
+   "sha256": "89249ab46a1e38d5ebb16fed5a617ec53bd742b9de099eeeda9d95490d4c4e1e"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/locales/th-TH/4.ogg",
+   "compiled": true,
+   "sha256": "33e2090fa751b2cd07b54db55131621febfddfb6f24185a3a401d24ae8bdc5a7"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/locales/th-TH/5.ogg",
+   "compiled": true,
+   "sha256": "34a8132a7cdc445662813f17ec4b39ca95b6a95e9c545ae1c370ca8b0793d636"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/locales/th-TH/6.ogg",
+   "compiled": true,
+   "sha256": "130a55e624ee88cebb95070da0a33d9a9c5b9a752d8a4e8c77a4439e634b10bd"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/locales/th-TH/7.ogg",
+   "compiled": true,
+   "sha256": "6c88422d43327dbe6753036f7aef8de59ead7e30bd7d1c0752c134cf566e0b64"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/locales/th-TH/8.ogg",
+   "compiled": true,
+   "sha256": "9862ab778fe67bf0142a70d35239b103f091c8e7ecde72bc43b179ec2f0c8975"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/locales/th-TH/9.ogg",
+   "compiled": true,
+   "sha256": "568476395f6ff5ccf5e8e4870c0d03ffa7e2dc8820b8e11fdc294fa133c17a12"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/locales/th-TH/activation.ogg",
+   "compiled": true,
+   "sha256": "a8d4c0715265755af44b1a213cb66b92bd695107291cb00dda7bd1f979c17cbd"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/common/communicator.ogg",
+   "compiled": true,
+   "sha256": "ca823be05309691853db3780abd4afee78494d7aa581a4427123852c3bf129f5"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/locales/th-TH/err_pin.ogg",
+   "compiled": true,
+   "sha256": "b7516c3d3d1ff3647e1e85985ee7776aee9281485df2abce0e9d5099444f8cc0"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/locales/th-TH/err_reg.ogg",
+   "compiled": true,
+   "sha256": "e3b66f01a07a7c5fbc8bff5cf4b2df2c79903cb4e594bd555176224f5547f1cd"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/common/exclamation.ogg",
+   "compiled": true,
+   "sha256": "61d0a91d7658e62c2ee0a940bd8b99e2062c4b760848f0ba2d793c852def4716"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/common/low_battery.ogg",
+   "compiled": true,
+   "sha256": "a0d9eebf8b55db5f3da9b325f76eee5db9123e4215d134804204fc56eb3191d1"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/common/popup.ogg",
+   "compiled": true,
+   "sha256": "f9806e04bbbc7b496f53632ea00610ec239fec02ea8ab41489782f079a3fc19b"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/common/success.ogg",
+   "compiled": true,
+   "sha256": "c6bcb6322575df4ddaaa266c388d287338e8f857e85d4b5e3d90e8ee6ea2d678"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/locales/th-TH/upgrade.ogg",
+   "compiled": true,
+   "sha256": "e48b953b6f821fe9fd6ef74dc5007fbeed8318526dab33a49ce9d29bba587946"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/common/vibration.ogg",
+   "compiled": true,
+   "sha256": "576747b283d4fcfab690435d7abcb92e549dfdf7dfcea82dc39fa686d983f8d5"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/locales/th-TH/welcome.ogg",
+   "compiled": true,
+   "sha256": "55e4ca4c19fd306fc0d9e4892b91aadf03ec6211f1c3888fd61a35b3ff5c9619"
+  },
+  {
+   "group": "07_Embedded_ogg",
+   "path": "main/assets/locales/th-TH/wificonfig.ogg",
+   "compiled": true,
+   "sha256": "c0525dae0c94665f650ce18404be7e6813f5591698b8a534353f26f8ec08a6a1"
+  },
+  {
+   "group": "09_Build_config",
+   "path": "CMakeLists.txt",
+   "compiled": false,
+   "sha256": "e81143ebbfcf29da17e3ea72296832252a51377a5c3b44fe7016484beac1ddf6"
+  },
+  {
+   "group": "09_Build_config",
+   "path": "main/CMakeLists.txt",
+   "compiled": false,
+   "sha256": "d5ebf07e575093be0cb8b500e813760cb5a682c6ad31989dd8d7a8b0aac0df35"
+  },
+  {
+   "group": "09_Build_config",
+   "path": "main/Kconfig.projbuild",
+   "compiled": false,
+   "sha256": "683e7f2575a0aa5094b7aaa19c3474717a914019e77bf6019f858a8464ba6284"
+  },
+  {
+   "group": "09_Build_config",
+   "path": "partitions/v2/16m.csv",
+   "compiled": false,
+   "sha256": "58a8787d486fe89bac4055acc310b7a0d6edd33e90c61d2ca6a705d251460333"
+  },
+  {
+   "group": "09_Build_config",
+   "path": "sdkconfig",
+   "compiled": false,
+   "sha256": "cce206cdbdc52940877c72294e34219f9175f0b424407448e46b116e9a4fd401"
+  },
+  {
+   "group": "09_Build_config",
+   "path": "sdkconfig.defaults",
+   "compiled": false,
+   "sha256": "7ba669c21e41d259729550e404e3d0e1545b038c11e27d57c234ebfda0f728e0"
+  },
+  {
+   "group": "09_Build_config",
+   "path": "sdkconfig.defaults.esp32s3",
+   "compiled": false,
+   "sha256": "3dfcd98281b132cdb41eba6aa2d8b2f007ab1e5aa9578869e35fb45b9be61ec1"
+  },
+  {
+   "group": "09_Build_config",
+   "path": "sdkconfig.defaults.thai",
+   "compiled": false,
+   "sha256": "8e59e3caea7d52ba9b2fe6ae7a7e17c068f8ab7c3463f3c4b2eced9b7aa64193"
+  },
+  {
+   "group": "09_Build_config",
+   "path": "dependencies.lock",
+   "compiled": false,
+   "sha256": "e42c16b1c4a6b1b3c38b0cb2227558890274c7ed5dabe0ff6da2d43690dbc9a8"
+  },
+  {
+   "group": "09_Build_config",
+   "path": "main/idf_component.yml",
+   "compiled": false,
+   "sha256": "7fb010b90895010ca97c15b941c6b37f2bcfa0ceda3453d18e4a9f577ad58cdf"
+  },
+  {
+   "group": "09_Build_config",
+   "path": "scripts/build_default_assets.py",
+   "compiled": false,
+   "sha256": "e0f83666d15cc05b237fa06826319971df8dae36b601d63832a68056fae89fad"
+  },
+  {
+   "group": "09_Build_config",
+   "path": "build/flasher_args.json",
+   "compiled": false,
+   "sha256": "152dec92873e5c47efe132ed4e65e1ded2f0dcc18dea5ee460e6cddd1027fccc"
+  },
+  {
+   "group": "09_Build_config",
+   "path": "build/flash_args",
+   "compiled": false,
+   "sha256": "928ffa71cfb830d3c13e28cea1491354655f13052a52c6a501b8e59d4973d6db"
+  }
+ ]
+}

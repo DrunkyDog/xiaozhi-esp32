@@ -1,0 +1,42 @@
+diff --git a/main/boards/waveshare/esp32-s3-touch-amoled-2.06/esp32-s3-touch-amoled-2.06.cc b/main/boards/waveshare/esp32-s3-touch-amoled-2.06/esp32-s3-touch-amoled-2.06.cc
+index 7ef1ae7..98130de 100644
+--- a/main/boards/waveshare/esp32-s3-touch-amoled-2.06/esp32-s3-touch-amoled-2.06.cc
++++ b/main/boards/waveshare/esp32-s3-touch-amoled-2.06/esp32-s3-touch-amoled-2.06.cc
+@@ -8,6 +8,7 @@
+ #include "led/single_led.h"
+ #include "mcp_server.h"
+ #include "config.h"
++#include "lvgl_theme.h"
+ #include "power_save_timer.h"
+ #include "axp2101.h"
+ #include "i2c_device.h"
+@@ -105,6 +106,13 @@ public:
+                         width, height, offset_x, offset_y, mirror_x, mirror_y, swap_xy) {
+         // Note: UI customization should be done in SetupUI(), not in constructor
+         // to ensure lvgl objects are created before accessing them
++
++        // Default to the dark theme unless the user picked one (NVS "display/theme")
++        Settings settings("display", false);
++        if (settings.GetString("theme").empty()) {
++            auto dark = LvglThemeManager::GetInstance().GetTheme("dark");
++            if (dark != nullptr) current_theme_ = dark;
++        }
+     }
+ 
+     virtual void SetupUI() override {
+diff --git a/main/idf_component.yml b/main/idf_component.yml
+index 2811b69..f132615 100644
+--- a/main/idf_component.yml
++++ b/main/idf_component.yml
+@@ -20,7 +20,10 @@ dependencies:
+   waveshare/custom_io_expander_ch32v003: ^2.0.0
+   espressif/esp_lcd_panel_io_additions: ^1.0.1~1
+   78/esp_lcd_nv3023: ==1.0.1
+-  78/esp-wifi-connect: ~3.3.1
++  78/esp-wifi-connect:
++    version: ~3.3.1
++    # Local copy: Chinese removed from the WiFi config page
++    override_path: ../local_components/esp-wifi-connect
+   # Stay below the P4 rev>=3.0 CMake gate until rev-1.x boards are retired.
+   espressif/esp_audio_effects: ~1.3.0
+   espressif/esp_audio_codec: ~2.5.0

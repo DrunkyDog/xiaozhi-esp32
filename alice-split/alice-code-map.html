@@ -1,0 +1,298 @@
+<title>Alice Firmware Code Map</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f5f6f4;--card:#ffffff;--fg:#1b1e1c;--mut:#5d6661;--line:#d3d9d5;--soft:#eaeeeb;
+  --core:#2f6fb0;--board:#7456c2;--audio:#bf5526;--proto:#1c8575;--disp:#a87a08;--apps:#b0386a;--comp:#66756d;--srv:#3c4a44;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;
+  --bg:#141715;--card:#1c201e;--fg:#e7ebe8;--mut:#9aa39e;--line:#343a37;--soft:#232826;
+  --core:#6ea5e0;--board:#a88ff0;--audio:#ec8a5c;--proto:#4fc2ae;--disp:#dcb13e;--apps:#e56f9f;--comp:#a3b1a9;--srv:#b9c6c0;}}
+:root[data-theme="dark"]{color-scheme:dark;
+  --bg:#141715;--card:#1c201e;--fg:#e7ebe8;--mut:#9aa39e;--line:#343a37;--soft:#232826;
+  --core:#6ea5e0;--board:#a88ff0;--audio:#ec8a5c;--proto:#4fc2ae;--disp:#dcb13e;--apps:#e56f9f;--comp:#a3b1a9;--srv:#b9c6c0;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.6 "IBM Plex Sans Thai",-apple-system,"Sukhumvit Set",system-ui,sans-serif}
+main{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:28px 56px}
+h1{font-size:26px;font-weight:600;margin:0 0 4px;text-wrap:balance}
+h2{font-size:19px;font-weight:600;margin:40px 0 6px;text-wrap:balance}
+h3{font-size:15px;margin:0 0 4px}
+p{max-width:72ch}
+.sub{color:var(--mut);margin:0 0 18px}
+code,.mono,pre{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:12.5px}
+.lead{color:var(--mut);margin:0 0 14px}
+.scroll{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px}
+figure{margin:0}
+figcaption{color:var(--mut);font-size:13px;margin-top:8px;max-width:90ch}
+svg{display:block;max-width:none}
+svg text{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace}
+.facts{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--mut);margin-bottom:6px}
+.facts b{color:var(--fg);font-weight:500}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{border-bottom:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+th{color:var(--mut);font-weight:600;font-size:12.5px;letter-spacing:.02em}
+.g{display:inline-flex;align-items:center;gap:6px;font-weight:600;white-space:nowrap}
+.g i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.tree{margin:0;line-height:1.55}
+.note{border-left:3px solid var(--audio);background:var(--card);padding:8px 12px;border-radius:0 6px 6px 0;margin:10px 0;max-width:90ch;font-size:14px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:820px){.two{grid-template-columns:1fr}}
+pre.mermaid{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;overflow-x:auto}
+.tag{font-size:11.5px;color:var(--mut);border:1px solid var(--line);border-radius:4px;padding:0 5px;margin-left:4px;font-weight:400}
+</style>
+
+<main>
+<h1>Alice firmware — code map</h1>
+<p class="sub">แยก <code>alice-merged.bin</code> → flash images → source code ตามกลุ่ม แล้ววาดความเชื่อมโยง: ใครเรียกใคร ถูกเรียกจากไหน ทำหน้าที่อะไร</p>
+<div class="facts">
+  <span>board <b>Waveshare ESP32-S3-Touch-AMOLED-2.06</b></span>
+  <span>ESP-IDF <b>v6.0.3</b></span>
+  <span>flash <b>16 MB DIO 80 MHz</b></span>
+  <span>source ที่ compile จริง <b>69 ไฟล์ใน main/</b> (จาก compile_commands.json)</span>
+  <span>components ที่ link <b>170</b></span>
+</div>
+
+<h2>1 · จาก merged bin กลับไปหา source</h2>
+<p class="lead">ทุกไฟล์ใน <code>01_flash_images/</code> ตัดออกจาก merged bin ด้วยการอ่าน partition table + header ของ image เอง (ไม่ได้ copy จาก build/) และตรวจแล้วว่า<b>ตรงกับไฟล์ใน build/ ทุก byte</b> · merge กลับด้วย esptool ได้ไฟล์เหมือนเดิม (round-trip OK)</p>
+<div class="two">
+<div class="scroll"><pre class="tree">alice-split/
+├─ 00_merged/alice-merged.bin        11,374,405 B  @0x0
+├─ 01_flash_images/
+│  ├─ 0x000000_bootloader.bin            16,704 B
+│  ├─ 0x008000_partition-table.bin        3,072 B
+│  ├─ 0x00d000_ota_data_initial.bin       8,192 B
+│  ├─ 0x020000_xiaozhi.bin            3,160,960 B
+│  └─ 0x800000_generated_assets.bin   2,985,797 B
+├─ 02_assets_unpacked/        24 ไฟล์ (font, srmodels, 21 png, index.json)
+├─ 03_source_by_group/
+│  ├─ 01_Core/           17   ├─ 06_Apps/          11
+│  ├─ 02_Board/          49   ├─ 07_Embedded_ogg/  22
+│  ├─ 03_Audio/          31   ├─ 08_Components/    local + รายการ 170
+│  ├─ 04_Protocol/        8   └─ 09_Build_config/  13
+│  └─ 05_Display/        31
+├─ tools/split_and_group.py
+└─ MANIFEST.json      (offset, size, sha256 ของทุกไฟล์)</pre></div>
+<div class="scroll">
+<table>
+<tr><th>ช่วงใน merged</th><th>มาจาก</th><th>source ที่สร้างมัน</th></tr>
+<tr><td class="mono">0x000000</td><td>bootloader.bin</td><td>ESP-IDF bootloader (ไม่อยู่ใน repo) + sdkconfig</td></tr>
+<tr><td class="mono">0x008000</td><td>partition-table.bin</td><td class="mono">partitions/v2/16m.csv</td></tr>
+<tr><td class="mono">0x009000</td><td>nvs — 0xFF ล้วน</td><td>ไม่มี · สร้างบนชิป (WiFi, persona, mood)</td></tr>
+<tr><td class="mono">0x00d000</td><td>ota_data_initial.bin</td><td>0xFF ล้วน → บูต ota_0</td></tr>
+<tr><td class="mono">0x00f000</td><td>phy_init — 0xFF ล้วน</td><td>ไม่มี · สร้างบนชิป</td></tr>
+<tr><td class="mono">0x020000</td><td>xiaozhi.bin</td><td>กลุ่ม 01–07 + components</td></tr>
+<tr><td class="mono">0x410000</td><td>ota_1 — 0xFF ล้วน</td><td>ใช้ตอน OTA เท่านั้น</td></tr>
+<tr><td class="mono">0x800000</td><td>generated_assets.bin</td><td><code>scripts/build_default_assets.py</code> → 02_assets_unpacked</td></tr>
+</table>
+</div>
+</div>
+<div class="note"><b>Fact ที่ต่างจาก diagram เดิม:</b> เสียงฝังในแอปมี <b>22</b> ไฟล์ ไม่ใช่ 21 — มี <code>welcome.ogg</code> (th-TH) ด้วย · และ source จริงมีกลุ่ม LED (<code>main/led/</code>) และ codec/บอร์ดอื่น ๆ ที่ compile เข้าไปแต่ไม่ได้ใช้บนบอร์ดนี้ (เช่น es8388, ml307_board) — จัดไว้ใน Audio / Board ตามลำดับ</div>
+
+<h2>2 · System diagram — กลุ่มโค้ดเรียกกันอย่างไร</h2>
+<p class="lead">ลูกศร = ทิศทางการเรียก (caller → callee) · ตัวเลข <span class="mono">#n</span> = จำนวน <code>#include</code> ข้ามกลุ่มที่นับได้จากโค้ดจริง</p>
+<figure>
+<div class="scroll">
+<svg viewBox="0 0 1120 724" width="1120" height="724" role="img" aria-label="Application ใน Core เป็นศูนย์กลาง เรียก Board, Audio, Protocol, Display; McpServer เรียก Apps และ Board; Assets ป้อน font emoji srmodels ให้ Display และ Audio; Protocol คุยกับ server">
+<defs>
+  <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+</defs>
+<g fill="none" stroke-width="1.6">
+  <!-- boxes -->
+  <rect x="420" y="250" width="280" height="200" rx="8" style="stroke:var(--core);fill:var(--card)"/>
+  <rect x="40" y="40" width="300" height="190" rx="8" style="stroke:var(--board);fill:var(--card)"/>
+  <rect x="40" y="480" width="300" height="180" rx="8" style="stroke:var(--audio);fill:var(--card)"/>
+  <rect x="780" y="480" width="300" height="180" rx="8" style="stroke:var(--proto);fill:var(--card)"/>
+  <rect x="780" y="40" width="300" height="190" rx="8" style="stroke:var(--disp);fill:var(--card)"/>
+  <rect x="420" y="40" width="280" height="130" rx="8" style="stroke:var(--apps);fill:var(--card)"/>
+  <rect x="420" y="540" width="280" height="120" rx="8" style="stroke:var(--comp);fill:var(--card);stroke-dasharray:5 4"/>
+  <rect x="870" y="300" width="210" height="110" rx="8" style="stroke:var(--srv);fill:var(--soft);stroke-dasharray:5 4"/>
+</g>
+<g font-size="13" style="fill:var(--fg)">
+  <text x="436" y="274" font-weight="600" style="fill:var(--core)">01 Core</text>
+  <text x="436" y="298">main.cc → app_main()</text>
+  <text x="436" y="318">Application (singleton,</text>
+  <text x="436" y="336">  event loop + Schedule)</text>
+  <text x="436" y="356">DeviceStateMachine</text>
+  <text x="436" y="376">McpServer · Ota · Assets</text>
+  <text x="436" y="396">Settings(NVS) · SystemInfo</text>
+  <text x="436" y="416" style="fill:var(--mut)">lang_config.h (TH strings/ogg)</text>
+
+  <text x="56" y="64" font-weight="600" style="fill:var(--board)">02 Board</text>
+  <text x="56" y="88">WaveshareEsp32s3TouchAMOLED2inch06</text>
+  <text x="56" y="108">  : WifiBoard : Board (DECLARE_BOARD)</text>
+  <text x="56" y="128">Pmic(AXP2101) · CST9217 touch</text>
+  <text x="56" y="148">Button · Motor · PowerSaveTimer</text>
+  <text x="56" y="168">CustomLcdDisplay · CustomBacklight</text>
+  <text x="56" y="188">WifiManager / Blufi (esp-wifi-connect)</text>
+  <text x="56" y="208" style="fill:var(--mut)">+ led/, boards/common/*</text>
+
+  <text x="56" y="504" font-weight="600" style="fill:var(--audio)">03 Audio</text>
+  <text x="56" y="528">AudioService — 3 tasks:</text>
+  <text x="56" y="548">  audio_input · audio_output</text>
+  <text x="56" y="568">  opus_codec</text>
+  <text x="56" y="588">BoxAudioCodec (ES8311 / ES7210)</text>
+  <text x="56" y="608">AfeAudioEngine · CustomWakeWord</text>
+  <text x="56" y="628">OggDemuxer (เล่นเสียงระบบ)</text>
+
+  <text x="796" y="504" font-weight="600" style="fill:var(--proto)">04 Protocol</text>
+  <text x="796" y="528">Protocol (abstract)</text>
+  <text x="796" y="548">  ├ MqttProtocol (+UDP audio)</text>
+  <text x="796" y="568">  └ WebsocketProtocol</text>
+  <text x="796" y="588">TextGlyphPayload</text>
+  <text x="796" y="608" style="fill:var(--mut)">เลือกตาม config จาก OTA</text>
+
+  <text x="796" y="64" font-weight="600" style="fill:var(--disp)">05 Display</text>
+  <text x="796" y="88">Display → LvglDisplay → LcdDisplay</text>
+  <text x="796" y="108">  → SpiLcdDisplay (SH8601 AMOLED)</text>
+  <text x="796" y="128">LvglTheme · LvglFont · LvglImage</text>
+  <text x="796" y="148">EmojiCollection · DynamicGlyphCache</text>
+  <text x="796" y="168">LvglGif · image_to_jpeg</text>
+  <text x="796" y="188" style="fill:var(--mut)">emote/oled display (compile, ไม่ใช้)</text>
+
+  <text x="436" y="64" font-weight="600" style="fill:var(--apps)">06 Apps</text>
+  <text x="436" y="88">RadarApp → RadarScope</text>
+  <text x="436" y="108">  → CsiSensor (WiFi CSI) → SdCard</text>
+  <text x="436" y="128">FlightRadarApp (+airports_data)</text>
+  <text x="436" y="148" style="fill:var(--mut)">หน้าจอ LVGL แยก + FreeRTOS task</text>
+
+  <text x="436" y="564" font-weight="600" style="fill:var(--comp)">08 Components · 07 ogg</text>
+  <text x="436" y="588">LVGL · esp-sr · opus · esp_codec_dev</text>
+  <text x="436" y="608">mqtt · websocket · cJSON · esp_wifi</text>
+  <text x="436" y="628" style="fill:var(--mut)">22 × .ogg ฝังผ่าน .S (EMBED)</text>
+
+  <text x="886" y="324" font-weight="600" style="fill:var(--srv)">Server</text>
+  <text x="886" y="348">alice.project-alice.uk</text>
+  <text x="886" y="368">/xiaozhi/ota/ (HTTP)</text>
+  <text x="886" y="388">+ MQTT / WebSocket</text>
+</g>
+<!-- arrows -->
+<g fill="none" stroke-width="1.5" style="color:var(--fg)" stroke="currentColor" marker-end="url(#ar)">
+  <path d="M420,280 C380,260 360,240 340,215"/>
+  <path d="M190,230 C200,300 380,330 418,330"/>
+  <path d="M420,420 C380,450 360,480 340,510"/>
+  <path d="M700,420 C740,450 760,480 778,510"/>
+  <path d="M700,280 C740,260 760,240 778,215"/>
+  <path d="M560,250 L560,172"/>
+  <path d="M340,180 C520,210 700,200 778,170"/>
+  <path d="M930,480 L960,412"/>
+  <path d="M700,300 C780,300 830,330 868,340"/>
+  <path d="M560,540 L560,452"/>
+  <path d="M700,110 L778,110"/>
+  <path d="M340,560 C380,560 400,470 418,440"/>
+  <path d="M780,640 C700,700 420,700 342,640"/>
+</g>
+<g font-size="11.5" style="fill:var(--mut)">
+  <text x="352" y="252">GetInstance() #4</text>
+  <text x="352" y="268">GetDisplay/GetAudioCodec</text>
+  <text x="206" y="300">event cb, ToggleChat,</text>
+  <text x="206" y="316">Schedule, Alert  #34</text>
+  <text x="350" y="458">Initialize/Start</text>
+  <text x="350" y="472">PlaySound  #2</text>
+  <text x="706" y="452">make_unique&lt;Mqtt|WS&gt;</text>
+  <text x="706" y="466">SendAudio/OnIncoming*  #4</text>
+  <text x="712" y="252">SetupUI, SetChatMessage</text>
+  <text x="712" y="268">SetEmotion, font/emoji  #10</text>
+  <text x="568" y="238">McpServer → Show/Start #3</text>
+  <text x="352" y="212">new CustomLcdDisplay  #16</text>
+  <text x="946" y="452">tts/stt/mcp</text>
+  <text x="946" y="466">+ opus audio</text>
+  <text x="722" y="318">Ota: CheckVersion/Activate</text>
+  <text x="568" y="512">link / embed</text>
+  <text x="714" y="102">LVGL</text>
+  <text x="352" y="532">callbacks → event bits</text>
+  <text x="410" y="716">OnIncomingAudio → PushPacketToDecodeQueue</text>
+</g>
+</svg>
+</div>
+<figcaption>Application (Core) เป็นศูนย์กลาง: ทุกกลุ่มส่งเหตุการณ์กลับเข้ามาผ่าน <code>xEventGroupSetBits</code> หรือ <code>Application::Schedule()</code> แล้ว event loop ใน <code>Run()</code> เป็นคนสั่งงานต่อ · Board เป็นเจ้าของ hardware object ทั้งหมด (display, codec, backlight, network) ส่วนกลุ่มอื่นขอผ่าน <code>Board::GetInstance().GetXxx()</code></figcaption>
+</figure>
+
+<h2>3 · Flow chart — ตั้งแต่เปิดเครื่องจนพร้อมคุย</h2>
+<pre class="mermaid">
+flowchart TD
+  A["ROM → bootloader.bin<br/>อ่าน otadata → บูต ota_0"] --> B["app_main() · main.cc<br/>nvs_flash_init()"]
+  B --> C["Application::GetInstance().Initialize()"]
+  C --> D["Board::GetInstance()<br/>create_board() ← DECLARE_BOARD"]
+  D --> D1["ctor Waveshare: PowerSaveTimer, I2C,<br/>AXP2101, SPI, Buttons, Motor,<br/>SH8601 display, CST9217 touch,<br/>InitializeTools() → McpServer.AddTool(self.persona / mood / motor …)"]
+  D1 --> E["display->SetupUI()"]
+  E --> F["audio_service_.Initialize(codec)<br/>Start() → tasks audio_input / audio_output / opus_codec"]
+  F --> G["McpServer.AddCommonTools()<br/>AddUserOnlyTools() (radar, flightradar, screen, OTA …)"]
+  G --> H["board.SetNetworkEventCallback()<br/>board.StartNetwork() → WifiManager"]
+  H --> R{{"Application::Run()<br/>xEventGroupWaitBits (loop ไม่จบ)"}}
+  R -- NETWORK_CONNECTED --> N["HandleNetworkConnectedEvent()<br/>xTaskCreate ActivationTask"]
+  N --> O["ota_ = make_unique&lt;Ota&gt;()"]
+  O --> P["CheckAssetsVersion()<br/>Assets.Apply(): text_font → LvglDisplay<br/>emoji_collection → EmojiCollection<br/>srmodels → AudioService.SetModelsList"]
+  P --> Q["CheckNewVersion()<br/>Ota.CheckVersion() → UpgradeFirmware? / Activate()"]
+  Q --> S["InitializeProtocol()<br/>MqttProtocol หรือ WebsocketProtocol<br/>ผูก OnIncomingAudio / OnIncomingJson → Start()"]
+  S -- ACTIVATION_DONE --> T["HandleActivationDoneEvent()<br/>state = Idle · PowerSave BALANCED · เล่น success.ogg"]
+  T --> R
+  R -- WAKE_WORD / TOGGLE_CHAT --> U["OpenAudioChannel → Listening"]
+  R -- SEND_AUDIO --> V["protocol_->SendAudio(packet)"]
+  R -- STATE_CHANGED --> W["HandleStateChangedEvent → Display/LED"]
+  R -- CLOCK_TICK 1s --> X["display->UpdateStatusBar()"]
+  R -- SCHEDULE --> Y["รัน main_tasks_ ที่ task อื่นฝากไว้"]
+</pre>
+
+<h2>4 · Sequence — เส้นทางเสียงและคำสั่ง MCP ระหว่างคุย</h2>
+<pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant HW as BoxAudioCodec<br/>(ES7210/ES8311)
+  participant AS as AudioService<br/>+ AfeAudioEngine
+  participant APP as Application<br/>(event loop)
+  participant PR as Protocol<br/>(MQTT/WS)
+  participant SV as Server
+  participant MCP as McpServer
+  participant X as Board / Apps / Display
+  HW->>AS: audio_input task อ่าน PCM
+  AS->>AS: AFE + WakeNet (srmodels.bin)
+  AS-->>APP: on_wake_word_detected → WAKE_WORD_DETECTED
+  APP->>PR: OpenAudioChannel()
+  AS->>AS: opus_codec encode
+  AS-->>APP: on_send_queue_available → SEND_AUDIO
+  APP->>PR: SendAudio(packet)
+  PR->>SV: opus frames
+  SV-->>PR: JSON stt / tts / llm
+  PR-->>APP: OnIncomingJson
+  APP->>X: Schedule → display->SetChatMessage / SetEmotion
+  SV-->>PR: opus (TTS)
+  PR-->>AS: OnIncomingAudio → PushPacketToDecodeQueue
+  AS->>HW: opus decode → audio_output task → ลำโพง
+  SV-->>PR: {"type":"mcp"} tools/call
+  PR-->>APP: OnIncomingJson
+  APP->>MCP: ParseMessage(payload)
+  MCP->>X: เรียก tool เช่น RadarApp.Show, CsiSensor.Recalibrate, SetBrightness
+  MCP-->>APP: SendMcpMessage(result)
+  APP->>PR: SendMcpMessage
+  PR->>SV: ผลลัพธ์ tool
+</pre>
+
+<h2>5 · ตารางกลุ่ม — หน้าที่ · เรียกใช้ · ถูกเรียกใช้</h2>
+<div class="scroll">
+<table>
+<tr><th>กลุ่ม</th><th>ไฟล์หลัก</th><th>หน้าที่</th><th>เรียกใช้ (→)</th><th>ถูกเรียกโดย (←)</th></tr>
+<tr><td><span class="g"><i style="background:var(--core)"></i>01 Core</span></td><td class="mono">main.cc, application.*, device_state_machine.*, mcp_server.*, ota.*, assets.*, settings.*, system_info.*</td><td>จุดเริ่ม app_main, event loop กลาง, state machine, MCP JSON-RPC, OTA/activation, โหลด assets partition, NVS</td><td>Display #10 · Board #4 · Protocol #4 · Apps #3 · Audio #2</td><td>Board #34 · Display #11 · Protocol #9 · Audio #3 · Apps #2</td></tr>
+<tr><td><span class="g"><i style="background:var(--board)"></i>02 Board</span></td><td class="mono">esp32-s3-touch-amoled-2.06.cc, config.h, wifi_board.*, board.*, axp2101.*, button.*, backlight.*, power_save_timer.*, led/*</td><td>สร้าง/ถือ hardware ทั้งหมด, WiFi, ปุ่ม, PMIC, มอเตอร์สั่น, persona / mood schedule tools</td><td>Core #34 (Application, Settings, lang) · Display #16 · Audio #3</td><td>Core #4 · Display #4 · Audio #2 · Protocol #2 · Apps #2</td></tr>
+<tr><td><span class="g"><i style="background:var(--audio)"></i>03 Audio</span></td><td class="mono">audio_service.*, box_audio_codec.*, afe_audio_engine.*, custom_wake_word.*, wake_word_audio_cache.*, ogg_demuxer.*</td><td>รับ/ส่งเสียง, AEC/VAD, wake word, opus encode/decode, เล่น .ogg ระบบ</td><td>Core #3 (Assets, Settings) · Board #2 · Protocol #1 (AudioStreamPacket)</td><td>Board #3 · Core #2 · Display #2</td></tr>
+<tr><td><span class="g"><i style="background:var(--proto)"></i>04 Protocol</span></td><td class="mono">protocol.*, mqtt_protocol.*, websocket_protocol.*, text_glyph_payload.*</td><td>ช่องทางคุยกับ server: JSON control + opus audio</td><td>Core #9 · Board #2 (GetNetwork, UUID) · Display #1</td><td>Core #4 · Audio #1</td></tr>
+<tr><td><span class="g"><i style="background:var(--disp)"></i>05 Display</span></td><td class="mono">display.*, lcd_display.*, lvgl_display/*, text_glyph.*</td><td>UI LVGL บน AMOLED: status bar, chat, emoji, theme, font ไทย, gif/jpeg</td><td>Core #11 · Board #4 · Audio #2</td><td>Board #16 · Core #10 · Apps #2 · Protocol #1</td></tr>
+<tr><td><span class="g"><i style="background:var(--apps)"></i>06 Apps</span></td><td class="mono">radar_app.*, radar_scope.*, csi_sensor.*, flight_radar_app.*, airports_data.h, sd_card.*</td><td>เรดาร์ตรวจจับคนจาก WiFi CSI (log ลง SD), flight radar ดึงข้อมูลเครื่องบินผ่าน HTTP</td><td>Board #2 · Core #2 (Settings) · Display #2</td><td>Core #3 (เฉพาะ McpServer)</td></tr>
+<tr><td><span class="g"><i style="background:var(--comp)"></i>07 ogg</span></td><td class="mono">th-TH/0–9, activation, err_pin, err_reg, upgrade, welcome, wificonfig · common/6 ไฟล์</td><td>เสียงระบบฝังใน xiaozhi.bin</td><td>—</td><td>lang_config.h → AudioService.PlaySound</td></tr>
+<tr><td><span class="g"><i style="background:var(--comp)"></i>assets</span></td><td class="mono">font_noto_sans_common_30_4.bin · srmodels.bin · 21×png · index.json</td><td>partition assets @0x800000 (mmap)</td><td>—</td><td>Assets::Apply → LvglDisplay.SetTextFont · EmojiCollection · AudioService.SetModelsList</td></tr>
+</table>
+</div>
+
+<h2>6 · MCP tools — server สั่งอะไรได้บ้าง และไปจบที่ไหน</h2>
+<div class="scroll">
+<table>
+<tr><th>ลงทะเบียนที่</th><th>tools</th><th>ปลายทาง</th></tr>
+<tr><td class="mono">mcp_server.cc</td><td class="mono">self.flightradar.open / close / set_home / set_range</td><td>06 Apps · FlightRadarApp</td></tr>
+<tr><td class="mono">mcp_server.cc</td><td class="mono">self.radar.open / recalibrate / set_page / next_page / close</td><td>06 Apps · RadarApp, CsiSensor</td></tr>
+<tr><td class="mono">mcp_server.cc</td><td class="mono">self.get_device_status · audio_speaker.set_volume · screen.set_brightness / set_theme / get_info / snapshot / preview_image · camera.take_photo</td><td>02 Board (codec, backlight, display, camera)</td></tr>
+<tr><td class="mono">mcp_server.cc</td><td class="mono">self.get_system_info · reboot · upgrade_firmware · assets.set_download_url</td><td>01 Core (SystemInfo, Application, Ota, Settings "assets")</td></tr>
+<tr><td class="mono">esp32-s3-touch-amoled-2.06.cc</td><td class="mono">self.system.reconfigure_wifi / reboot / power_off / enter_power_save · persona.get_all / set · mood_schedule.get / set · motor.vibrate</td><td>02 Board (WifiBoard, Pmic, Settings NVS, CustomLcdDisplay, Motor)</td></tr>
+</table>
+</div>
+
+<p class="sub" style="margin-top:28px">ที่มาของข้อมูล: <code>build/compile_commands.json</code>, <code>build/flasher_args.json</code>, <code>build/project_description.json</code>, <code>build/*.ogg.S</code>, และการอ่านโค้ดใน <code>main/</code> · ตัวเลข #n นับ <code>#include "…"</code> ข้ามกลุ่มจาก source ที่ compile จริง</p>
+</main>

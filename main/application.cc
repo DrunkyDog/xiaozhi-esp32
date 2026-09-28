@@ -516,7 +516,15 @@ void Application::InitializeProtocol() {
     });
 
     protocol_->OnIncomingAudio([this](std::unique_ptr<AudioStreamPacket> packet) {
-        if (GetDeviceState() == kDeviceStateSpeaking) {
+        auto state = GetDeviceState();
+        // The server sends {"type":"tts","state":"stop"} as soon as it has
+        // finished generating the reply, which is not the same moment as
+        // having sent the last audio packet. The state flips to listening on
+        // that message, and every packet still in flight used to be dropped
+        // here with no log at all, cutting the tail off the reply.
+        // Keep accepting audio while playback is still draining.
+        if (state == kDeviceStateSpeaking ||
+            (state == kDeviceStateListening && !audio_service_.IsPlaybackIdle())) {
             audio_service_.PushPacketToDecodeQueue(std::move(packet));
         }
     });
@@ -688,6 +696,10 @@ void Application::Alert(const char* status, const char* message, const char* emo
     }
 }
 
+void Application::PlaySoundOnListening(const std::string_view& sound) {
+    sound_on_listening_ = sound;
+}
+
 void Application::DismissAlert() {
     if (GetDeviceState() == kDeviceStateIdle) {
         auto display = Board::GetInstance().GetDisplay();
@@ -833,7 +845,7 @@ void Application::HandleWakeWordDetectedEvent() {
             audio_service_.EnableWakeWordDetection(true);
         } else {
             // Play popup sound and start listening again
-            play_popup_on_listening_ = true;
+            sound_on_listening_ = Lang::Sounds::OGG_POPUP;
             SetListeningMode(GetDefaultListeningMode());
         }
     } else if (state == kDeviceStateActivating) {
@@ -898,7 +910,7 @@ void Application::ContinueWakeWordInvoke(const std::string& wake_word) {
 #else
     // Set flag to play popup sound after state changes to listening
     // (PlaySound here would be cleared by ResetDecoder in EnableVoiceProcessing)
-    play_popup_on_listening_ = true;
+    sound_on_listening_ = Lang::Sounds::OGG_POPUP;
     SetListeningMode(GetDefaultListeningMode());
 #endif
 }
@@ -934,7 +946,7 @@ void Application::HandleStateChangedEvent() {
             display->SetEmotion("neutral");
 
             // Make sure the audio processor is running
-            if (play_popup_on_listening_ || !audio_service_.IsAudioProcessorRunning()) {
+            if (!sound_on_listening_.empty() || !audio_service_.IsAudioProcessorRunning()) {
                 // For auto mode, wait for the playback queue to drain before enabling
                 // voice processing. This prevents audio truncation when STOP arrives
                 // late due to network jitter. Instead of blocking the main loop here,
@@ -982,9 +994,10 @@ void Application::StartListeningAudio() {
     ConfigureWakeWordForListening();
 
     // Play popup sound after ResetDecoder (in EnableVoiceProcessing) has been called
-    if (play_popup_on_listening_) {
-        play_popup_on_listening_ = false;
-        audio_service_.PlaySound(Lang::Sounds::OGG_POPUP);
+    if (!sound_on_listening_.empty()) {
+        auto sound = sound_on_listening_;
+        sound_on_listening_ = {};
+        audio_service_.PlaySound(sound);
     }
 }
 

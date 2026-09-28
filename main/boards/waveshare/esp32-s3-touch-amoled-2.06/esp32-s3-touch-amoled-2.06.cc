@@ -9,6 +9,7 @@
 #include "mcp_server.h"
 #include "config.h"
 #include "power_save_timer.h"
+#include "assets/lang_config.h"
 #include "axp2101.h"
 #include "i2c_device.h"
 #include <freertos/FreeRTOS.h>
@@ -25,6 +26,7 @@
 #include <driver/i2c_master.h>
 #include <driver/spi_master.h>
 #include "settings.h"
+#include "lvgl_theme.h"
 
 #include <esp_lcd_touch_ft5x06.h>
 #include <esp_lvgl_port.h>
@@ -38,11 +40,11 @@ public:
         WriteReg(0x22, 0b110); // PWRON > OFFLEVEL as POWEROFF Source enable
         WriteReg(0x27, 0x10);  // hold 4s to power off
 
-        // Disable All DCs but DC1
-        WriteReg(0x80, 0x01);
-        // Disable All LDOs
-        WriteReg(0x90, 0x00);
-        WriteReg(0x91, 0x00);
+        // Set voltages first, then write the final enable masks. ALDO1/ALDO2 are
+        // never switched off here: devices on this I2C bus hang off them, and
+        // turning them off (even briefly) can pull the bus down. A crash in that
+        // window left the rails off across soft resets, so every later boot
+        // failed at the first PMIC write until the board was power cycled.
 
         // Set DC1 to 3.3V
         WriteReg(0x82, (3300 - 1500) / 100);
@@ -51,14 +53,27 @@ public:
         WriteReg(0x92, (3300 - 500) / 100);
         WriteReg(0x93, (3300 - 500) / 100);
 
-        // Enable ALDO1(MIC)
-        WriteReg(0x90, 0x03);
+        // ALDO3 → มอเตอร์สั่น (schematic: ALDO3→P1→motor→Q1@GPIO18) ตั้ง 3.3V
+        WriteReg(0x94, (3300 - 500) / 100);
+        // Enable ALDO1(MIC) + ALDO2 + ALDO3(motor), ALDO4 off
+        WriteReg(0x90, 0x07);
+        // Disable BLDO/CPUSLDO/DLDO
+        WriteReg(0x91, 0x00);
+        // Disable All DCs but DC1
+        WriteReg(0x80, 0x01);
 
         WriteReg(0x64, 0x02); // CV charger voltage setting to 4.1V
 
         WriteReg(0x61, 0x02); // set Main battery precharge current to 50mA
         WriteReg(0x62, 0x0A); // set Main battery charger current to 400mA ( 0x08-200mA, 0x09-300mA, 0x0A-400mA )
         WriteReg(0x63, 0x01); // set Main battery term charge current to 25mA
+
+    }
+    // accessor สำหรับ diagnostic (ReadReg/WriteReg เป็น protected)
+    uint8_t Dbg(uint8_t r) { return ReadReg(r); }
+    void MotorPowerOn() {
+        WriteReg(0x94, (3300 - 500) / 100);       // ALDO3 = 3.3V
+        WriteReg(0x90, ReadReg(0x90) | 0x04);     // ensure ALDO3 enable (bit2)
     }
 };
 
@@ -113,6 +128,14 @@ public:
                         width, height, offset_x, offset_y, mirror_x, mirror_y, swap_xy) {
         // Note: UI customization should be done in SetupUI(), not in constructor
         // to ensure lvgl objects are created before accessing them
+
+        // ค่าเริ่มต้นของบอร์ดนี้คือธีมมืด (AMOLED: พิกเซลดำ = ดับ ประหยัดไฟ)
+        // ถ้าผู้ใช้เคยเลือกธีมเอง (self.screen.set_theme) ค่าใน NVS จะถูกใช้แทน
+        Settings settings("display", false);
+        if (settings.GetString("theme").empty()) {
+            auto dark = LvglThemeManager::GetInstance().GetTheme("dark");
+            if (dark != nullptr) current_theme_ = dark;
+        }
     }
 
     virtual void SetupUI() override {
@@ -532,10 +555,21 @@ private:
     PowerSaveTimer* power_save_timer_;
 
     void InitializePowerSaveTimer() {
-        power_save_timer_ = new PowerSaveTimer(-1, 60, 300);
+        // NVS "wifi"/sleep_mode ถูกตั้ง false ไว้ก่อนหน้า ทำให้ timer ไม่ทำงาน (จอติดตลอด)
+        // บังคับเปิดกลับ เพื่อให้จอดับตามกำหนด
+        {
+            Settings s("wifi", true);
+            if (!s.GetBool("sleep_mode", true)) {
+                s.SetBool("sleep_mode", true);
+            }
+        }
+        // จอดับสนิทหลังไม่มีการใช้งาน 30 วิ (ประหยัดแบต + ลดความร้อน)
+        // arg3 = -1 → ไม่ auto power-off ทั้งเครื่อง แค่ดับจอ แล้วยัง listen wakeword ต่อ
+        // cpu_max_freq = -1 → ไม่แตะ light-sleep/mic → wakeword "computer" ยังทำงานตอนจอดับ
+        power_save_timer_ = new PowerSaveTimer(-1, 30, -1);
         power_save_timer_->OnEnterSleepMode([this]() {
             GetDisplay()->SetPowerSaveMode(true);
-            GetBacklight()->SetBrightness(20); });
+            GetBacklight()->SetBrightness(0); });
         power_save_timer_->OnExitSleepMode([this]() {
             GetDisplay()->SetPowerSaveMode(false);
             GetBacklight()->RestoreBrightness(); });
@@ -582,6 +616,13 @@ private:
                 EnterWifiConfigMode();
                 return;
             }
+            // เริ่ม session ใหม่ด้วยปุ่ม Boot ตอนเครื่องอยู่สถานะพร้อม (idle) — ไม่ใช่ทาง wakeword
+            // → เล่นเสียง communicator แจ้งเริ่มการสนทนา
+            if (app.GetDeviceState() == kDeviceStateIdle) {
+                // Deferred: a direct PlaySound() here is wiped by ResetDecoder()
+                // inside EnableVoiceProcessing() when the session starts.
+                app.PlaySoundOnListening(Lang::Sounds::OGG_COMMUNICATOR);
+            }
             app.ToggleChatState();
         });
 
@@ -593,6 +634,66 @@ private:
             }
         });
 #endif
+    }
+
+    // ===== มอเตอร์สั่น (GPIO18, ไฟจาก ALDO3) =====
+    void InitializeMotor() {
+        gpio_config_t cfg = {};
+        cfg.pin_bit_mask = 1ULL << MOTOR_GPIO;
+        cfg.mode = GPIO_MODE_INPUT_OUTPUT;   // input_output → gpio_get_level อ่านระดับจริงได้
+        cfg.pull_up_en = GPIO_PULLUP_DISABLE;
+        cfg.pull_down_en = GPIO_PULLDOWN_DISABLE;
+        cfg.intr_type = GPIO_INTR_DISABLE;
+        gpio_config(&cfg);
+        gpio_set_level(MOTOR_GPIO, 0);
+    }
+
+    // pack: [delay_ms:16][pulses:8][on_ms:8-scaled] → เก็บใน task arg
+    static void MotorTask(void* arg) {
+        uint32_t p = (uint32_t)(uintptr_t)arg;
+        int delay_ms = (p >> 16) & 0xFFFF;
+        int pulses   = (p >> 8) & 0xFF;
+        int on_ms    = (p & 0xFF) * 10;   // เก็บเป็นหน่วย 10ms (สูงสุด 2550ms)
+        if (delay_ms) vTaskDelay(pdMS_TO_TICKS(delay_ms));
+        ESP_LOGW("Motor", "self-test START: GPIO%d, pulses=%d, on=%dms", MOTOR_GPIO, pulses, on_ms);
+        for (int i = 0; i < pulses; i++) {
+            gpio_set_level(MOTOR_GPIO, 1);
+            ESP_LOGW("Motor", "GPIO%d -> HIGH (level readback=%d)", MOTOR_GPIO, gpio_get_level(MOTOR_GPIO));
+            vTaskDelay(pdMS_TO_TICKS(on_ms));
+            gpio_set_level(MOTOR_GPIO, 0);
+            ESP_LOGW("Motor", "GPIO%d -> LOW", MOTOR_GPIO);
+            if (i < pulses - 1) vTaskDelay(pdMS_TO_TICKS(150));
+        }
+        ESP_LOGW("Motor", "self-test DONE");
+        vTaskDelete(nullptr);
+    }
+    // สั่นแบบ non-blocking (spawn task) — pulses ครั้ง ครั้งละ on_ms
+    void Vibrate(int pulses, int on_ms, int delay_ms = 0) {
+        if (pulses < 1) pulses = 1;
+        int on10 = on_ms / 10; if (on10 < 1) on10 = 1; if (on10 > 255) on10 = 255;
+        uint32_t packed = ((delay_ms & 0xFFFF) << 16) | ((pulses & 0xFF) << 8) | (on10 & 0xFF);
+        xTaskCreate(&MotorTask, "motor", 2048, (void*)(uintptr_t)packed, 4, nullptr);
+    }
+
+    // Diagnostic: รันตอน 8 วิหลังบูต (ช่วง log เงียบ) → อ่าน register ALDO3 + สั่น 2 วิ ×4 รอบ
+    static void MotorDiagTask(void* arg) {
+        auto self = static_cast<WaveshareEsp32s3TouchAMOLED2inch06*>(arg);
+        vTaskDelay(pdMS_TO_TICKS(8000));
+        for (int r = 0; r < 4; r++) {
+            if (self->pmic_) self->pmic_->MotorPowerOn();
+            uint8_t r90 = self->pmic_ ? self->pmic_->Dbg(0x90) : 0;
+            uint8_t r94 = self->pmic_ ? self->pmic_->Dbg(0x94) : 0;
+            ESP_LOGW("MotorDiag", "round %d | ALDO3 EN(0x90)=0x%02X bit2=%d | VOL(0x94)=0x%02X (%dmV) | -> vibrate 2s",
+                     r, r90, (r90 >> 2) & 1, r94, (r94 & 0x1F) * 100 + 500);
+            gpio_set_level(MOTOR_GPIO, 1);
+            ESP_LOGW("MotorDiag", "GPIO%d = HIGH (readback=%d)", MOTOR_GPIO, gpio_get_level(MOTOR_GPIO));
+            vTaskDelay(pdMS_TO_TICKS(2000));
+            gpio_set_level(MOTOR_GPIO, 0);
+            ESP_LOGW("MotorDiag", "GPIO%d = LOW", MOTOR_GPIO);
+            vTaskDelay(pdMS_TO_TICKS(4000));
+        }
+        ESP_LOGW("MotorDiag", "diagnostic done");
+        vTaskDelete(nullptr);
     }
 
     void InitializeSH8601Display() {
@@ -802,6 +903,16 @@ private:
             }), [this](const PropertyList& properties) -> ReturnValue {
                 return display_->SetSchedule(properties["schedule"].value<std::string>());
             });
+
+        mcp_server.AddTool("self.motor.vibrate",
+            "สั่นมอเตอร์ haptic (ทดสอบ/แจ้งเตือน). pulses = จำนวนครั้ง (1-5), duration = ms ต่อครั้ง (50-500).",
+            PropertyList({
+                Property("pulses", kPropertyTypeInteger, 2, 1, 5),
+                Property("duration", kPropertyTypeInteger, 200, 50, 500),
+            }), [this](const PropertyList& properties) -> ReturnValue {
+                Vibrate(properties["pulses"].value<int>(), properties["duration"].value<int>());
+                return true;
+            });
     }
 
 public:
@@ -813,7 +924,10 @@ public:
         InitializeSH8601Display();
         InitializeTouch();
         InitializeButtons();
+        InitializeMotor();
         InitializeTools();
+        // Diagnostic motor task: รันตอน 8 วิหลังบูต (ช่วง log เงียบ) — อ่าน ALDO3 + สั่น 2 วิ ×4
+        xTaskCreate(&MotorDiagTask, "motordiag", 3072, this, 4, nullptr);
     }
 
     virtual AudioCodec* GetAudioCodec() override {

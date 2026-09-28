@@ -22,6 +22,10 @@
 
 #define BOOT_BUTTON_GPIO GPIO_NUM_0
 
+// มอเตอร์สั่น (schematic V1.0 "Motor" block): GPIO18 → R12 → Q1(MMBT3904) low-side switch
+// ไฟมอเตอร์มาจาก AXP2101 ALDO3 (ต้องเปิด ALDO3 ใน Pmic) — active HIGH
+#define MOTOR_GPIO GPIO_NUM_18
+
 #define EXAMPLE_PIN_NUM_LCD_CS GPIO_NUM_12
 #define EXAMPLE_PIN_NUM_LCD_PCLK GPIO_NUM_11
 #define EXAMPLE_PIN_NUM_LCD_DATA0 GPIO_NUM_4

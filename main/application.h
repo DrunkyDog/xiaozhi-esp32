@@ -114,6 +114,10 @@ public:
     void SetAecMode(AecMode mode);
     AecMode GetAecMode() const { return aec_mode_; }
     void PlaySound(const std::string_view& sound);
+    // Queue a sound to play once listening has actually started. Use this
+    // instead of PlaySound() when the caller is about to start a chat session,
+    // otherwise ResetDecoder() discards it before it is ever heard.
+    void PlaySoundOnListening(const std::string_view& sound);
     AudioService& GetAudioService() { return audio_service_; }
     
     /**
@@ -144,7 +148,10 @@ private:
     bool has_server_time_ = false;
     bool aborted_ = false;
     bool assets_version_checked_ = false;
-    bool play_popup_on_listening_ = false;  // Flag to play popup sound after state changes to listening
+    // Sound to play once the device has entered listening. Playing it earlier
+    // is pointless: EnableVoiceProcessing() calls ResetDecoder(), which drops
+    // whatever is queued. Empty means "nothing pending".
+    std::string_view sound_on_listening_;
     bool pending_listening_start_ = false;  // Waiting for playback to drain before starting listening (auto mode)
     int clock_ticks_ = 0;
     TaskHandle_t activation_task_handle_ = nullptr;

@@ -69,12 +69,6 @@ public:
         WriteReg(0x63, 0x01); // set Main battery term charge current to 25mA
 
     }
-    // accessor สำหรับ diagnostic (ReadReg/WriteReg เป็น protected)
-    uint8_t Dbg(uint8_t r) { return ReadReg(r); }
-    void MotorPowerOn() {
-        WriteReg(0x94, (3300 - 500) / 100);       // ALDO3 = 3.3V
-        WriteReg(0x90, ReadReg(0x90) | 0x04);     // ensure ALDO3 enable (bit2)
-    }
 };
 
 #define LCD_OPCODE_WRITE_CMD (0x02ULL)
@@ -675,27 +669,6 @@ private:
         xTaskCreate(&MotorTask, "motor", 2048, (void*)(uintptr_t)packed, 4, nullptr);
     }
 
-    // Diagnostic: รันตอน 8 วิหลังบูต (ช่วง log เงียบ) → อ่าน register ALDO3 + สั่น 2 วิ ×4 รอบ
-    static void MotorDiagTask(void* arg) {
-        auto self = static_cast<WaveshareEsp32s3TouchAMOLED2inch06*>(arg);
-        vTaskDelay(pdMS_TO_TICKS(8000));
-        for (int r = 0; r < 4; r++) {
-            if (self->pmic_) self->pmic_->MotorPowerOn();
-            uint8_t r90 = self->pmic_ ? self->pmic_->Dbg(0x90) : 0;
-            uint8_t r94 = self->pmic_ ? self->pmic_->Dbg(0x94) : 0;
-            ESP_LOGW("MotorDiag", "round %d | ALDO3 EN(0x90)=0x%02X bit2=%d | VOL(0x94)=0x%02X (%dmV) | -> vibrate 2s",
-                     r, r90, (r90 >> 2) & 1, r94, (r94 & 0x1F) * 100 + 500);
-            gpio_set_level(MOTOR_GPIO, 1);
-            ESP_LOGW("MotorDiag", "GPIO%d = HIGH (readback=%d)", MOTOR_GPIO, gpio_get_level(MOTOR_GPIO));
-            vTaskDelay(pdMS_TO_TICKS(2000));
-            gpio_set_level(MOTOR_GPIO, 0);
-            ESP_LOGW("MotorDiag", "GPIO%d = LOW", MOTOR_GPIO);
-            vTaskDelay(pdMS_TO_TICKS(4000));
-        }
-        ESP_LOGW("MotorDiag", "diagnostic done");
-        vTaskDelete(nullptr);
-    }
-
     void InitializeSH8601Display() {
         esp_lcd_panel_io_handle_t panel_io = nullptr;
         esp_lcd_panel_handle_t panel = nullptr;
@@ -926,8 +899,6 @@ public:
         InitializeButtons();
         InitializeMotor();
         InitializeTools();
-        // Diagnostic motor task: รันตอน 8 วิหลังบูต (ช่วง log เงียบ) — อ่าน ALDO3 + สั่น 2 วิ ×4
-        xTaskCreate(&MotorDiagTask, "motordiag", 3072, this, 4, nullptr);
     }
 
     virtual AudioCodec* GetAudioCodec() override {

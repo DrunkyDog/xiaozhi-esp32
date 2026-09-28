@@ -1,5 +1,6 @@
 #include "application.h"
 #include "assets.h"
+#include "lan_update.h"
 #include "assets/lang_config.h"
 #include "audio_codec.h"
 #include "board.h"
@@ -375,6 +376,9 @@ void Application::ActivationTask() {
     // Initialize the protocol
     InitializeProtocol();
 
+    // Continue a LAN update session interrupted by the assets install reboot
+    LanUpdate::ReopenIfRequested();
+
     // Signal completion to main loop
     xEventGroupSetBits(event_group_, MAIN_EVENT_ACTIVATION_DONE);
 }
@@ -385,6 +389,9 @@ void Application::CheckAssetsVersion() {
         return;
     }
     assets_version_checked_ = true;
+
+    // Assets uploaded over the LAN are installed here, before anything maps them (reboots)
+    LanUpdate::ApplyStagedAssetsIfAny();
 
     auto& board = Board::GetInstance();
     auto display = board.GetDisplay();

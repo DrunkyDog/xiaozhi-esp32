@@ -20,6 +20,7 @@
 #include <driver/i2c_master.h>
 #include <driver/spi_master.h>
 #include "settings.h"
+#include "lan_update.h"
 
 #include <esp_lcd_touch_ft5x06.h>
 #include <esp_lvgl_port.h>
@@ -221,7 +222,7 @@ private:
     }
 
     // Launcher coexistence: this firmware may run from ota_2/ota_3 next to a Launcher in ota_0/ota_1.
-    // Holding BOOT switches back to the newest usable Launcher image.
+    // PWR short press switches back to the newest usable Launcher image.
     static bool LauncherPartitionHealthy(const esp_partition_t* p, esp_app_desc_t* desc) {
         if (p == nullptr || esp_ota_get_partition_description(p, desc) != ESP_OK) {
             return false;
@@ -289,7 +290,7 @@ private:
             ESP_LOGW(TAG, "No Launcher image found");
             return;
         }
-        ESP_LOGI(TAG, "BOOT long press: return to Launcher (%s, %s)", best->label, best_desc.version);
+        ESP_LOGI(TAG, "Return to Launcher (%s, %s)", best->label, best_desc.version);
         if (esp_ota_set_boot_partition(best) == ESP_OK) {
             vTaskDelay(pdMS_TO_TICKS(100));
             esp_restart();
@@ -297,8 +298,9 @@ private:
     }
 
     void InitializeButtons() {
-        boot_button_.OnLongPress([this]() {
-            ReturnToLauncher();
+        // BOOT long press: open/close the LAN update page for 5 minutes (PWR short press returns to the Launcher)
+        boot_button_.OnLongPress([]() {
+            LanUpdate::GetInstance().Toggle();
         });
 
         boot_button_.OnClick([this]() {
@@ -427,7 +429,7 @@ public:
         InitializeButtons();
         if (RunningNextToLauncher() && pmic_ != nullptr) {
             pmic_->EnablePowerButtonShortPressIrq();
-            ESP_LOGI(TAG, "Launcher found: PWR short press / BOOT long press return to it");
+            ESP_LOGI(TAG, "Launcher found: PWR short press returns to it; BOOT long press opens LAN update");
             xTaskCreate(PowerButtonTask, "pwr_button", 4096, this, 5, nullptr);
         }
         InitializeTools();

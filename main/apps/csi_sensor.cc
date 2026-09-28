@@ -20,8 +20,9 @@
 static esp_ping_handle_t s_ping = nullptr;
 
 CsiSensor& CsiSensor::GetInstance() {
-    static CsiSensor inst;
-    return inst;
+    // heap on first use (not .bss): ~7 KB of buffers only exist once the radar is used
+    static CsiSensor* inst = new CsiSensor();
+    return *inst;
 }
 
 // ---------------- CSI callback (WiFi task — ต้องเร็วที่สุด) ----------------

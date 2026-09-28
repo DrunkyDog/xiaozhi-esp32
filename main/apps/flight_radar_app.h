@@ -35,6 +35,9 @@
 class FlightRadarApp {
 public:
     static FlightRadarApp& GetInstance();
+    // ทำลาย instance (poll task, timer, screen, JSON buffer ใน PSRAM) — no-op ถ้ายังไม่เคยสร้าง
+    static void DestroyInstance();
+    ~FlightRadarApp();
 
     void Show();
     void Hide();

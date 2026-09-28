@@ -64,14 +64,16 @@ list(APPEND SOURCES
     "boards/common/sy6970.cc"
     "boards/common/system_reset.cc"
 )
-# --- RadarApp (WiFi CSI radar screen) ---
-list(APPEND SOURCES "apps/radar_app.cc")
-list(APPEND SOURCES "apps/csi_sensor.cc")
-list(APPEND SOURCES "apps/sd_card.cc")
-list(APPEND SOURCES "apps/flight_radar_app.cc")
-list(APPEND SOURCES "apps/radar_scope.cc")
-list(APPEND SOURCES "apps/app_manager.cc")
-list(APPEND INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/apps)
+# --- Alice full-screen apps (WiFi CSI radar, flight radar) — opt-in ---
+if(CONFIG_ALICE_FULLSCREEN_APPS)
+    list(APPEND SOURCES "apps/radar_app.cc")
+    list(APPEND SOURCES "apps/csi_sensor.cc")
+    list(APPEND SOURCES "apps/sd_card.cc")
+    list(APPEND SOURCES "apps/flight_radar_app.cc")
+    list(APPEND SOURCES "apps/radar_scope.cc")
+    list(APPEND SOURCES "apps/app_manager.cc")
+    list(APPEND INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/apps)
+endif()
 if(CONFIG_XIAOZHI_NETWORK_ETHERNET)
     list(APPEND SOURCES "boards/common/ethernet_board.cc")
 endif()

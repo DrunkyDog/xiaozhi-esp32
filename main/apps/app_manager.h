@@ -4,6 +4,7 @@
 // AppManager — ตัวกลางเปิด/ปิดแอปเต็มจอ (RadarApp, FlightRadarApp, ...)
 // กติกา: เปิดได้ทีละแอปเดียว — เปิดแอปใหม่จะปิดแอปเดิมก่อนเสมอ
 // เพื่อให้แอปใหม่จำ "จอผู้ช่วย" เป็นจอที่ต้องกลับ ไม่ใช่จอของแอปก่อนหน้า
+// ปิดแอปแล้วคืนหน่วยความจำทันที: ลบ screen/timer/buffer ของแอป + ล้าง LVGL image cache
 
 #include <functional>
 #include <mutex>
@@ -18,6 +19,7 @@ public:
         std::function<void()> show;
         std::function<void()> hide;
         std::function<bool()> is_visible;  // ใช้ตรวจว่า Show() สำเร็จจริง
+        std::function<void()> release;     // ทำลาย instance ของแอป (screen, timer, buffer)
     };
 
     static AppManager& GetInstance();
@@ -30,6 +32,8 @@ public:
     bool Close(const std::string& name);
     // ปิดแอปที่เปิดอยู่ (ถ้ามี) — false ถ้าไม่มีแอปเปิดอยู่
     bool CloseCurrent();
+    // ทำลาย instance ถ้าแอปนั้นไม่ได้เปิดอยู่ (หลัง MCP tool ที่ต้องสร้าง instance ชั่วคราว)
+    void ReleaseIfClosed(const std::string& name);
 
     // จอที่แอปควรกลับไปตอน Hide() — ถ้ามีจอกำลัง fade-in อยู่ (เช่นเพิ่งปิดแอปก่อนหน้า)
     // ให้ใช้จอนั้น เพราะ lv_screen_active() ยังเป็นจอเก่าจนกว่า animation จะเริ่ม
@@ -46,6 +50,7 @@ private:
     AppManager();
     int  Find(const std::string& name);   // -1 = ไม่พบ
     void HideCurrentLocked();
+    void ReleaseLocked(int idx);
 
     std::mutex mutex_;
     std::vector<App> apps_;

@@ -34,6 +34,8 @@ class RadarApp {
 public:
     // สร้างครั้งแรกเมื่อเรียกใช้ (ต้องมี display แล้ว) — ใช้ผ่าน AppManager
     static RadarApp& GetInstance();
+    // ทำลาย instance (screen, timer, หยุด sensor) — no-op ถ้ายังไม่เคยสร้าง
+    static void DestroyInstance();
 
     explicit RadarApp(Display* display);
     ~RadarApp();

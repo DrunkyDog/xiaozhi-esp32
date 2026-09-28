@@ -856,6 +856,15 @@ config CUSTOM_WAKE_WORD_THRESHOLD
     help
         Custom Wake Word Threshold, range 1-99, the smaller the more sensitive, default 20
 
+config ALICE_FULLSCREEN_APPS
+    bool "Alice full-screen apps (WiFi CSI radar, flight radar)"
+    default n
+    help
+        Build RadarApp, FlightRadarApp, CsiSensor, SdCard and AppManager into the
+        firmware and register their MCP tools (self.radar.*, self.flightradar.*,
+        self.app.close). Off by default: when not installed they take no flash,
+        no RAM and no LVGL cache.
+
 config SEND_WAKE_WORD_DATA
     bool "Send Wake Word Data"
     default y

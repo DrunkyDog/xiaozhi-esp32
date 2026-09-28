@@ -31,9 +31,16 @@
 #define BLIP_LIFE_MS 2600
 #define TICK_MS      33          // ~30 fps
 
+static RadarApp* s_radar = nullptr;
+
 RadarApp& RadarApp::GetInstance() {
-    static RadarApp* app = new RadarApp(Board::GetInstance().GetDisplay());
-    return *app;
+    if (s_radar == nullptr) s_radar = new RadarApp(Board::GetInstance().GetDisplay());
+    return *s_radar;
+}
+
+void RadarApp::DestroyInstance() {
+    delete s_radar;          // ~RadarApp stops the sensor, deletes timer + screen
+    s_radar = nullptr;
 }
 
 RadarApp::RadarApp(Display* display) : display_(display) {}

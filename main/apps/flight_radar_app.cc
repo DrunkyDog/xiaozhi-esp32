@@ -35,9 +35,27 @@
 #define NVS_NS     "flightradar"
 #define LAT_SCALE  100000.0f       // Settings เก็บได้แค่ int → สเกล 1e5 (~1 เมตร)
 
+static FlightRadarApp* s_flight_radar = nullptr;
+
 FlightRadarApp& FlightRadarApp::GetInstance() {
-    static FlightRadarApp inst;
-    return inst;
+    if (s_flight_radar == nullptr) s_flight_radar = new FlightRadarApp();
+    return *s_flight_radar;
+}
+
+void FlightRadarApp::DestroyInstance() {
+    delete s_flight_radar;
+    s_flight_radar = nullptr;
+}
+
+FlightRadarApp::~FlightRadarApp() {
+    running_ = false;
+    for (int i = 0; i < 60 && task_ != nullptr; i++) vTaskDelay(pdMS_TO_TICKS(50));
+    if (display_ != nullptr) {
+        DisplayLockGuard lock(display_);
+        if (timer_)  { lv_timer_delete(timer_); timer_ = nullptr; }
+        if (screen_) { lv_obj_delete(screen_);  screen_ = nullptr; }
+    }
+    if (json_buf_) { heap_caps_free(json_buf_); json_buf_ = nullptr; }
 }
 
 // ---------------- พิกัดบ้าน (NVS) ----------------

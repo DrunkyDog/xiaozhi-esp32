@@ -12,10 +12,12 @@
 
 #include "application.h"
 #include "display.h"
+#ifdef CONFIG_ALICE_FULLSCREEN_APPS
 #include "radar_app.h"
 #include "csi_sensor.h"
 #include "flight_radar_app.h"
 #include "app_manager.h"
+#endif
 #include "oled_display.h"
 #include "board.h"
 #include "settings.h"
@@ -36,6 +38,7 @@ McpServer::~McpServer() {
 
 void McpServer::AddCommonTools() {
 
+#ifdef CONFIG_ALICE_FULLSCREEN_APPS
     // ===== AppManager: แอปเต็มจอ เปิดได้ทีละแอป =====
     AddTool("self.app.close",
         "Close whichever full-screen app is open (radar, flight radar, ...) and return "
@@ -73,7 +76,9 @@ void McpServer::AddCommonTools() {
         [](const PropertyList& properties) -> ReturnValue {
             float la = properties["lat"].value<int>() / 1000.0f;
             float lo = properties["lon"].value<int>() / 1000.0f;
-            return FlightRadarApp::GetInstance().SetHome(la, lo);
+            bool ok = FlightRadarApp::GetInstance().SetHome(la, lo);
+            AppManager::GetInstance().ReleaseIfClosed("flightradar");
+            return ok;
         });
     AddTool("self.flightradar.set_range",
         "Set flight radar range in nautical miles (5-250).",
@@ -82,6 +87,7 @@ void McpServer::AddCommonTools() {
         }),
         [](const PropertyList& properties) -> ReturnValue {
             FlightRadarApp::GetInstance().SetRangeNm(properties["nm"].value<int>());
+            AppManager::GetInstance().ReleaseIfClosed("flightradar");
             return true;
         });
 
@@ -114,6 +120,8 @@ void McpServer::AddCommonTools() {
                 Property("page", kPropertyTypeInteger, 0, 3)
             }),
             [](const PropertyList& properties) -> ReturnValue {
+                // only while the radar is open — never build it just to switch pages
+                if (AppManager::GetInstance().Current() != "radar") return false;
                 RadarApp::GetInstance().SetPage(properties["page"].value<int>());
                 return true;
             });
@@ -122,6 +130,8 @@ void McpServer::AddCommonTools() {
             "IMPORTANT: perform this silently - do NOT speak or produce any reply text.",
             PropertyList(),
             [](const PropertyList& properties) -> ReturnValue {
+                // only while the radar is open — never build it just to switch pages
+                if (AppManager::GetInstance().Current() != "radar") return false;
                 RadarApp::GetInstance().NextPage();
                 return true;
             });
@@ -133,6 +143,7 @@ void McpServer::AddCommonTools() {
                 return AppManager::GetInstance().Close("radar");
             });
     }
+#endif // CONFIG_ALICE_FULLSCREEN_APPS
 
     // *Important* To speed up the response time, we add the common tools to the beginning of
     // the tools list to utilize the prompt cache.

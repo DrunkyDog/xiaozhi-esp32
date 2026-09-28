@@ -55,6 +55,26 @@ public:
         WriteReg(0x62, 0x0A); // set Main battery charger current to 400mA ( 0x08-200mA, 0x09-300mA, 0x0A-400mA )
         WriteReg(0x63, 0x01); // set Main battery term charge current to 25mA
     }
+
+    // Same PWRON short-press handling as the esp32-s3-touch-amoled-1.8-v2 board
+    void EnablePowerButtonShortPressIrq() {
+        ClearIrqStatus();
+        WriteReg(0x41, ReadReg(0x41) | 0x08); // Enable AXP2101 PWRON short press IRQ
+    }
+
+    bool ConsumePowerButtonShortPressIrq() {
+        uint8_t status = ReadReg(0x49);
+        if (status != 0) {
+            WriteReg(0x49, status);
+        }
+        return (status & 0x08) != 0;
+    }
+
+    void ClearIrqStatus() {
+        WriteReg(0x48, 0xff);
+        WriteReg(0x49, 0xff);
+        WriteReg(0x4a, 0xff);
+    }
 };
 
 #define LCD_OPCODE_WRITE_CMD (0x02ULL)
@@ -229,9 +249,25 @@ private:
         return 0;
     }
 
-    void ReturnToLauncher() {
+    static bool RunningNextToLauncher() {
         auto running = esp_ota_get_running_partition();
-        if (running == nullptr || running->subtype < ESP_PARTITION_SUBTYPE_APP_OTA_2) {
+        return running != nullptr && running->subtype >= ESP_PARTITION_SUBTYPE_APP_OTA_2 &&
+               running->subtype < ESP_PARTITION_SUBTYPE_APP_OTA_MAX;
+    }
+
+    // PWR short press -> Launcher (only when sharing flash with it)
+    static void PowerButtonTask(void* arg) {
+        auto* self = static_cast<WaveshareEsp32s3TouchAMOLED2inch06*>(arg);
+        while (true) {
+            if (self->pmic_ != nullptr && self->pmic_->ConsumePowerButtonShortPressIrq()) {
+                self->ReturnToLauncher();
+            }
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+    }
+
+    void ReturnToLauncher() {
+        if (!RunningNextToLauncher()) {
             return;  // standalone layout: there is no Launcher to return to
         }
         const esp_partition_t* best = nullptr;
@@ -389,6 +425,11 @@ public:
         InitializeSH8601Display();
         InitializeTouch();
         InitializeButtons();
+        if (RunningNextToLauncher() && pmic_ != nullptr) {
+            pmic_->EnablePowerButtonShortPressIrq();
+            ESP_LOGI(TAG, "Launcher found: PWR short press / BOOT long press return to it");
+            xTaskCreate(PowerButtonTask, "pwr_button", 4096, this, 5, nullptr);
+        }
         InitializeTools();
     }
 

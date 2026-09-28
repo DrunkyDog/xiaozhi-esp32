@@ -11,6 +11,8 @@
 #include "lvgl_theme.h"
 #include "power_save_timer.h"
 #include "axp2101.h"
+#include <esp_ota_ops.h>
+#include <esp_app_desc.h>
 #include "i2c_device.h"
 
 #include <esp_log.h>
@@ -198,7 +200,71 @@ private:
         ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO));
     }
 
+    // Launcher coexistence: this firmware may run from ota_2/ota_3 next to a Launcher in ota_0/ota_1.
+    // Holding BOOT switches back to the newest usable Launcher image.
+    static bool LauncherPartitionHealthy(const esp_partition_t* p, esp_app_desc_t* desc) {
+        if (p == nullptr || esp_ota_get_partition_description(p, desc) != ESP_OK) {
+            return false;
+        }
+        return true;
+    }
+
+    static bool IsRollbackState(const esp_partition_t* p) {
+        esp_ota_img_states_t state;
+        return esp_ota_get_state_partition(p, &state) == ESP_OK &&
+               (state == ESP_OTA_IMG_INVALID || state == ESP_OTA_IMG_ABORTED);
+    }
+
+    static int CompareVersion(const char* a, const char* b) {
+        while (*a || *b) {
+            char* ea = nullptr;
+            char* eb = nullptr;
+            long na = strtol(a, &ea, 10);
+            long nb = strtol(b, &eb, 10);
+            if (na != nb) return na < nb ? -1 : 1;
+            a = (*ea == '.') ? ea + 1 : ea;
+            b = (*eb == '.') ? eb + 1 : eb;
+            if ((*a && (*a < '0' || *a > '9')) || (*b && (*b < '0' || *b > '9'))) break;
+        }
+        return 0;
+    }
+
+    void ReturnToLauncher() {
+        auto running = esp_ota_get_running_partition();
+        if (running == nullptr || running->subtype < ESP_PARTITION_SUBTYPE_APP_OTA_2) {
+            return;  // standalone layout: there is no Launcher to return to
+        }
+        const esp_partition_t* best = nullptr;
+        esp_app_desc_t best_desc = {};
+        bool best_healthy = false;
+        for (auto sub : {ESP_PARTITION_SUBTYPE_APP_OTA_0, ESP_PARTITION_SUBTYPE_APP_OTA_1}) {
+            auto p = esp_partition_find_first(ESP_PARTITION_TYPE_APP, sub, nullptr);
+            esp_app_desc_t desc;
+            if (!LauncherPartitionHealthy(p, &desc)) continue;
+            bool healthy = !IsRollbackState(p);
+            if (best == nullptr || (healthy && !best_healthy) ||
+                (healthy == best_healthy && CompareVersion(desc.version, best_desc.version) > 0)) {
+                best = p;
+                best_desc = desc;
+                best_healthy = healthy;
+            }
+        }
+        if (best == nullptr) {
+            ESP_LOGW(TAG, "No Launcher image found");
+            return;
+        }
+        ESP_LOGI(TAG, "BOOT long press: return to Launcher (%s, %s)", best->label, best_desc.version);
+        if (esp_ota_set_boot_partition(best) == ESP_OK) {
+            vTaskDelay(pdMS_TO_TICKS(100));
+            esp_restart();
+        }
+    }
+
     void InitializeButtons() {
+        boot_button_.OnLongPress([this]() {
+            ReturnToLauncher();
+        });
+
         boot_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
             if (app.GetDeviceState() == kDeviceStateStarting) {

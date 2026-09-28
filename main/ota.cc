@@ -13,11 +13,13 @@
 #include <esp_efuse.h>
 #include <esp_efuse_table.h>
 #include <esp_heap_caps.h>
+#include <psa/crypto.h>
 #ifdef SOC_HMAC_SUPPORTED
 #include <esp_hmac.h>
 #endif
 
 #include <algorithm>
+#include <cctype>
 #include <charconv>
 #include <cstring>
 #include <expected>
@@ -25,6 +27,19 @@
 #include <vector>
 
 #define TAG "Ota"
+
+// Optional integrity data from the last version check: { "firmware": { ..., "sha256": "<64 hex>" } }.
+// Upgrade() is static, so the expected digest is kept here and matched against the URL.
+static std::string s_expected_url;
+static std::string s_expected_sha256;
+
+static bool IsSha256Hex(const char* s) {
+    if (s == nullptr || strlen(s) != 64) return false;
+    for (int i = 0; i < 64; i++) {
+        if (!isxdigit((unsigned char)s[i])) return false;
+    }
+    return true;
+}
 
 
 Ota::Ota() {
@@ -226,6 +241,14 @@ NetworkResult<> Ota::CheckVersion() {
         if (cJSON_IsString(url)) {
             firmware_url_ = url->valuestring;
         }
+        cJSON *sha256 = cJSON_GetObjectItem(firmware, "sha256");
+        s_expected_url.clear();
+        s_expected_sha256.clear();
+        if (cJSON_IsString(url) && cJSON_IsString(sha256) && IsSha256Hex(sha256->valuestring)) {
+            s_expected_url = url->valuestring;
+            s_expected_sha256 = sha256->valuestring;
+            std::transform(s_expected_sha256.begin(), s_expected_sha256.end(), s_expected_sha256.begin(), ::tolower);
+        }
 
         if (cJSON_IsString(version) && cJSON_IsString(url)) {
             // Check if the version is newer, for example, 0.1.0 is newer than 0.0.1
@@ -273,8 +296,25 @@ bool Ota::Upgrade(const std::string& firmware_url, std::function<void(int progre
     ESP_LOGI(TAG, "Upgrading firmware from %s", firmware_url.c_str());
     esp_ota_handle_t update_handle = 0;
     auto update_partition = esp_ota_get_next_update_partition(NULL);
+    // When sharing flash with the Launcher (ota_0/ota_1), AI Voice owns ota_2/ota_3:
+    // stay inside our own A/B pair instead of taking the "next" slot, which may be the Launcher's.
+    auto running = esp_ota_get_running_partition();
+    if (running != NULL && running->subtype >= ESP_PARTITION_SUBTYPE_APP_OTA_2 &&
+        running->subtype < ESP_PARTITION_SUBTYPE_APP_OTA_MAX) {
+        int slot = running->subtype - ESP_PARTITION_SUBTYPE_APP_OTA_MIN;
+        auto partner = (esp_partition_subtype_t)(ESP_PARTITION_SUBTYPE_APP_OTA_MIN + (slot ^ 1));
+        update_partition = esp_partition_find_first(ESP_PARTITION_TYPE_APP, partner, NULL);
+    }
     if (update_partition == NULL) {
         ESP_LOGE(TAG, "Failed to get update partition");
+        return false;
+    }
+
+    // Integrity policy: verify SHA-256 when the version check supplied one for this URL.
+    // Plain http:// is only accepted together with such a digest.
+    const bool verify_sha256 = (!s_expected_sha256.empty() && firmware_url == s_expected_url);
+    if (firmware_url.rfind("https://", 0) != 0 && !verify_sha256) {
+        ESP_LOGE(TAG, "Refusing non-HTTPS firmware URL without a sha256 from the OTA server");
         return false;
     }
 
@@ -312,6 +352,14 @@ bool Ota::Upgrade(const std::string& firmware_url, std::function<void(int progre
         return false;
     }
 
+    // mbedTLS 4 (ESP-IDF v6) only exposes hashing through the PSA Crypto API
+    psa_hash_operation_t sha_op = PSA_HASH_OPERATION_INIT;
+    if (psa_hash_setup(&sha_op, PSA_ALG_SHA_256) != PSA_SUCCESS) {
+        ESP_LOGE(TAG, "Failed to set up SHA-256");
+        heap_caps_free(buffer);
+        return false;
+    }
+
     size_t buffer_offset = 0;  // Current data size in buffer
     size_t total_read = 0, recent_read = 0;
     auto last_calc_time = esp_timer_get_time();
@@ -319,6 +367,7 @@ bool Ota::Upgrade(const std::string& firmware_url, std::function<void(int progre
         auto ret = http->Read(buffer + buffer_offset, PAGE_SIZE - buffer_offset);
         if (!ret) {
             ESP_LOGE(TAG, "Failed to read HTTP data: %s", ret.error().ToString().c_str());
+            psa_hash_abort(&sha_op);
             heap_caps_free(buffer);
             return false;
         }
@@ -347,6 +396,7 @@ bool Ota::Upgrade(const std::string& firmware_url, std::function<void(int progre
                 if (esp_ota_begin(update_partition, OTA_WITH_SEQUENTIAL_WRITES, &update_handle)) {
                     esp_ota_abort(update_handle);
                     ESP_LOGE(TAG, "Failed to begin OTA");
+                    psa_hash_abort(&sha_op);
                     heap_caps_free(buffer);
                     return false;
                 }
@@ -364,8 +414,10 @@ bool Ota::Upgrade(const std::string& firmware_url, std::function<void(int progre
                 ESP_LOGE(TAG, "Failed to write OTA data: %s", esp_err_to_name(err));
                 esp_ota_abort(update_handle);
                 heap_caps_free(buffer);
+                psa_hash_abort(&sha_op);
                 return false;
             }
+            psa_hash_update(&sha_op, (const uint8_t*)buffer, buffer_offset);
 
             buffer_offset = 0;
         }
@@ -376,6 +428,30 @@ bool Ota::Upgrade(const std::string& firmware_url, std::function<void(int progre
     }
     http->Close();
     heap_caps_free(buffer);
+
+    uint8_t digest[32];
+    size_t digest_len = 0;
+    if (psa_hash_finish(&sha_op, digest, sizeof(digest), &digest_len) != PSA_SUCCESS || digest_len != sizeof(digest)) {
+        ESP_LOGE(TAG, "Failed to finish SHA-256");
+        if (image_header_checked) esp_ota_abort(update_handle);
+        return false;
+    }
+
+    if (total_read != content_length) {
+        ESP_LOGE(TAG, "Download size mismatch: %u of %u bytes", total_read, content_length);
+        if (image_header_checked) esp_ota_abort(update_handle);
+        return false;
+    }
+    if (verify_sha256) {
+        char hex[65];
+        for (int i = 0; i < 32; i++) snprintf(hex + i * 2, 3, "%02x", digest[i]);
+        if (s_expected_sha256 != hex) {
+            ESP_LOGE(TAG, "SHA-256 mismatch, firmware rejected");
+            esp_ota_abort(update_handle);
+            return false;
+        }
+        ESP_LOGI(TAG, "SHA-256 verified");
+    }
 
     esp_err_t err = esp_ota_end(update_handle);
     if (err != ESP_OK) {

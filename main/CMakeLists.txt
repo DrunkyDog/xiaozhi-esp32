@@ -67,6 +67,10 @@ list(APPEND SOURCES
 # --- RadarApp (WiFi CSI radar screen) ---
 list(APPEND SOURCES "apps/radar_app.cc")
 list(APPEND SOURCES "apps/csi_sensor.cc")
+list(APPEND SOURCES "apps/sd_card.cc")
+list(APPEND SOURCES "apps/flight_radar_app.cc")
+list(APPEND SOURCES "apps/radar_scope.cc")
+list(APPEND SOURCES "apps/app_manager.cc")
 list(APPEND INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/apps)
 if(CONFIG_XIAOZHI_NETWORK_ETHERNET)
     list(APPEND SOURCES "boards/common/ethernet_board.cc")
@@ -346,7 +350,7 @@ elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_S3_TOUCH_AMOLED_2_06)
     set(BOARD_TYPE "esp32-s3-touch-amoled-2.06")
     set(BUILTIN_TEXT_FONT font_noto_sans_basic_30_4)
     set(BUILTIN_ICON_FONT font_material_symbols_30_4)
-    set(DEFAULT_EMOJI_COLLECTION alice-moods-64)
+    set(DEFAULT_EMOJI_COLLECTION noto-color-emoji_64)
 elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_C6_TOUCH_AMOLED_2_06)
     set(MANUFACTURER "waveshare")
     set(BOARD_TYPE "esp32-c6-touch-amoled-2.06")
@@ -1061,8 +1065,12 @@ idf_component_register(SRCS ${SOURCES}
                     INCLUDE_DIRS ${INCLUDE_DIRS}
                     WHOLE_ARCHIVE
                     PRIV_REQUIRES
+                        esp_http_client
                         esp_wifi
                         lwip
+                        fatfs
+                        sdmmc
+                        esp_driver_sdspi
                         esp_pm
                         esp_psram
                         esp_netif

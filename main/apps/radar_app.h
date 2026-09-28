@@ -1,81 +1,115 @@
 /*
- * RadarApp — LVGL radar screen for xiaozhi-esp32 (Alice)
- * Target board: waveshare esp32-s3-touch-amoled-2.06  (410 x 502, LVGL v9)
+ * RadarApp — หน้าจอ WiFi CSI radar สำหรับ xiaozhi-esp32 (TARS)
+ * บอร์ด: waveshare esp32-s3-touch-amoled-2.06 (410 x 502, LVGL v9)
  *
- * "App takes over the screen" pattern:
- *   Show()  -> creates/loads its OWN lv screen over whatever Alice is showing
- *   Hide()  -> restores the previously active screen (Alice UI returns)
- * Alice's own display code never needs to know this app exists.
+ * รูปแบบ "แอปยกจอ":
+ *   Show() -> สร้าง/โหลด lv screen ของตัวเองทับหน้าจอที่ TARS แสดงอยู่
+ *   Hide() -> คืน screen เดิม (TARS กลับมาแสดงผลเหมือนเดิม)
+ * โค้ดฝั่ง TARS ไม่ต้องรู้ว่าแอปนี้มีอยู่
  *
- * Rendering uses plain LVGL widgets (arcs/lines/objs), NOT lv_canvas:
- * a full-screen canvas at 410x502 RGB565 would cost ~411 KB of RAM.
+ * UI 4 หน้า (แนวคิดจาก ruvnet/RuView ADR-045, เขียนใหม่สำหรับ LVGL v9):
+ *   0 DASHBOARD — วง radar + สถานะ
+ *   1 VITALS    — อัตราการหายใจ + กราฟคลื่น
+ *   2 PRESENCE  — กราฟ motion score + เส้น threshold
+ *   3 SYSTEM    — อัตรา CSI, subcarrier, threshold, RAM
  *
- * Thread safety: every public method takes DisplayLockGuard, so it is safe
- * to call Update() from a network task.
+ * เปลี่ยนหน้าได้ 3 ทาง: ปัดจอ / อัตโนมัติทุก 8 วิ / สั่งด้วยเสียง
+ * (สองทางหลังจำเป็นเพราะทัชสกรีนอาจใช้ไม่ได้)
+ *
+ * Thread safety: ทุกเมธอดสาธารณะจับ DisplayLockGuard จึงเรียกจาก task อื่นได้
  */
 #ifndef RADAR_APP_H
 #define RADAR_APP_H
 
 #include <lvgl.h>
-#include <string>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
 #include "display.h"
+#include "radar_scope.h"
 
 #define RADAR_BLIP_POOL   16
-#define RADAR_SPOKES      12
-
-// ข้อมูลมาจาก CsiSensor บนเครื่องโดยตรง — ไม่มี backend แล้ว
+#define RADAR_PAGES       4
+#define RADAR_CHART_PTS   60      // จุดในกราฟ (60 จุด ~ ประวัติล่าสุด)
+#define RADAR_ROTATE_MS   8000    // สลับหน้าอัตโนมัติทุก 8 วินาที
 
 class RadarApp {
 public:
+    // สร้างครั้งแรกเมื่อเรียกใช้ (ต้องมี display แล้ว) — ใช้ผ่าน AppManager
+    static RadarApp& GetInstance();
+
     explicit RadarApp(Display* display);
     ~RadarApp();
 
-    // แสดง radar ทับหน้าจอปัจจุบัน (จำ screen เดิมไว้คืนทีหลัง)
     void Show();
-    // ปิด radar แล้วคืนหน้าจอเดิมให้ Alice
     void Hide();
     bool IsVisible() const { return visible_; }
 
-    // ป้อนข้อมูล: score = motion score, present = มีคนไหม, calibrating = กำลังเก็บ baseline
-    // thread-safe — เรียกจาก task อื่นได้
+    // ป้อนข้อมูล — thread-safe
     void Update(float score, bool present, bool calibrating = false);
 
+    // เปลี่ยนหน้า (สั่งด้วยเสียงผ่าน MCP)
+    void NextPage();
+    void SetPage(int page);
+    int  CurrentPage() const { return page_; }
+    // เปิด/ปิดการสลับหน้าอัตโนมัติ
+    void SetAutoRotate(bool on);
+    bool AutoRotate() const { return auto_rotate_; }
+
 private:
-    void BuildUi();                       // สร้าง widget ครั้งเดียว (lazy)
+    void BuildUi();
+    void BuildDashboard(lv_obj_t* t);
+    void BuildVitals(lv_obj_t* t);
+    void BuildPresence(lv_obj_t* t);
+    void BuildSystem(lv_obj_t* t);
+    void UpdateDots();
     void SpawnBlip(float score);
-    static void TimerCb(lv_timer_t* t);   // หมุน sweep + fade blips
+    static void TimerCb(lv_timer_t* t);
     void Tick();
 
     Display*   display_   = nullptr;
     bool       visible_   = false;
     bool       built_     = false;
 
-    lv_obj_t*  screen_    = nullptr;      // screen ของ radar เอง
-    lv_obj_t*  prev_screen_ = nullptr;    // screen ของ Alice ที่จะคืนกลับ
-    lv_timer_t* timer_    = nullptr;
+    lv_obj_t*  screen_      = nullptr;
+    lv_obj_t*  prev_screen_ = nullptr;
+    lv_obj_t*  tileview_    = nullptr;
+    lv_obj_t*  tile_[RADAR_PAGES]  = {};
+    lv_obj_t*  dot_[RADAR_PAGES]   = {};   // จุดบอกหน้าปัจจุบัน
+    lv_timer_t* timer_      = nullptr;
 
-    lv_obj_t*  sweep_line_ = nullptr;
-    lv_obj_t*  status_pill_ = nullptr;
-    lv_obj_t*  status_dot_  = nullptr;
+    RadarScope scope_;
+
+    // หน้า 0
+    lv_obj_t*  status_pill_  = nullptr;
+    lv_obj_t*  status_dot_   = nullptr;
     lv_obj_t*  status_label_ = nullptr;
-    lv_obj_t*  score_label_ = nullptr;
-    lv_obj_t*  meter_       = nullptr;
+    lv_obj_t*  score_label_  = nullptr;
+    lv_obj_t*  meter_        = nullptr;
 
-    // LVGL เก็บเป็น pointer → array ต้องอยู่ยาว (เป็น member ห้ามเป็น local)
-    lv_point_precise_t sweep_pts_[2];
-    lv_point_precise_t spoke_pts_[RADAR_SPOKES][2];
+    // หน้า 1 (vitals)
+    lv_obj_t*  bpm_label_    = nullptr;
+    lv_obj_t*  bpm_hint_     = nullptr;
+    lv_obj_t*  vit_chart_    = nullptr;
+    lv_chart_series_t* vit_ser_ = nullptr;
 
-    struct Blip {
-        lv_obj_t* obj = nullptr;
-        uint32_t  born = 0;
-        bool      active = false;
-    };
+    // หน้า 2 (presence)
+    lv_obj_t*  pres_chart_   = nullptr;
+    lv_chart_series_t* pres_ser_ = nullptr;
+    lv_obj_t*  pres_state_   = nullptr;
+
+    // หน้า 3 (system)
+    lv_obj_t*  sys_rate_ = nullptr;
+    lv_obj_t*  sys_sub_  = nullptr;
+    lv_obj_t*  sys_thr_  = nullptr;
+    lv_obj_t*  sys_ram_  = nullptr;
+
+    struct Blip { lv_obj_t* obj = nullptr; uint32_t born = 0; bool active = false; };
     Blip blips_[RADAR_BLIP_POOL];
     int  blip_next_ = 0;
 
-    float angle_ = 0.0f;                  // มุม sweep ปัจจุบัน (rad)
+    int  page_ = 0;
+    bool auto_rotate_ = true;
+    int  rotate_tick_ = 0;
+    int  keepawake_tick_ = 0;
+    int  sys_tick_ = 0;
 };
 
 #endif // RADAR_APP_H

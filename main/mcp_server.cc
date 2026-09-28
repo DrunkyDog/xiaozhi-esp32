@@ -13,6 +13,9 @@
 #include "application.h"
 #include "display.h"
 #include "radar_app.h"
+#include "csi_sensor.h"
+#include "flight_radar_app.h"
+#include "app_manager.h"
 #include "oled_display.h"
 #include "board.h"
 #include "settings.h"
@@ -32,30 +35,102 @@ McpServer::~McpServer() {
 }
 
 void McpServer::AddCommonTools() {
+
+    // ===== AppManager: แอปเต็มจอ เปิดได้ทีละแอป =====
+    AddTool("self.app.close",
+        "Close whichever full-screen app is open (radar, flight radar, ...) and return "
+        "to the assistant display. Use when the user says to close or exit the app "
+        "without naming it. IMPORTANT: perform this silently - do NOT speak or produce any reply text.",
+        PropertyList(),
+        [](const PropertyList& properties) -> ReturnValue {
+            return AppManager::GetInstance().CloseCurrent();
+        });
+
+    // ===== FlightRadar: เครื่องบินรอบตัวจาก ADS-B =====
+    AddTool("self.flightradar.open",
+        "Open the flight radar screen showing live nearby aircraft from ADS-B data. "
+        "Use when the user asks to see planes, flights, or air traffic around them. "
+        "IMPORTANT: perform this silently - do NOT speak or produce any reply text. "
+        "The screen itself is the response.",
+        PropertyList(),
+        [](const PropertyList& properties) -> ReturnValue {
+            return AppManager::GetInstance().Open("flightradar");
+        });
+    AddTool("self.flightradar.close",
+        "Close the flight radar screen and return to the assistant display. "
+        "IMPORTANT: perform this silently - do NOT speak or produce any reply text.",
+        PropertyList(),
+        [](const PropertyList& properties) -> ReturnValue {
+            return AppManager::GetInstance().Close("flightradar");
+        });
+    AddTool("self.flightradar.set_home",
+        "Set the flight radar home position. lat/lon are in milli-degrees "
+        "(decimal degrees x 1000). Example: Bangkok 13.75,100.50 -> lat=13750 lon=100500.",
+        PropertyList({
+            Property("lat", kPropertyTypeInteger, -90000, 90000),
+            Property("lon", kPropertyTypeInteger, -180000, 180000)
+        }),
+        [](const PropertyList& properties) -> ReturnValue {
+            float la = properties["lat"].value<int>() / 1000.0f;
+            float lo = properties["lon"].value<int>() / 1000.0f;
+            return FlightRadarApp::GetInstance().SetHome(la, lo);
+        });
+    AddTool("self.flightradar.set_range",
+        "Set flight radar range in nautical miles (5-250).",
+        PropertyList({
+            Property("nm", kPropertyTypeInteger, 5, 250)
+        }),
+        [](const PropertyList& properties) -> ReturnValue {
+            FlightRadarApp::GetInstance().SetRangeNm(properties["nm"].value<int>());
+            return true;
+        });
+
     // ===== RadarApp: voice-controlled screen takeover =====
     {
-        struct RadarHolder {
-            static RadarApp* Get() {
-                static RadarApp* app = nullptr;
-                if (app == nullptr) {
-                    app = new RadarApp(Board::GetInstance().GetDisplay());
-                }
-                return app;
-            }
-        };
         AddTool("self.radar.open",
-            "Open the WiFi CSI radar screen showing human presence and motion.",
+            "Open the WiFi CSI radar screen showing human presence and motion in the room. "
+            "IMPORTANT: perform this silently - do NOT speak or produce any reply text.",
             PropertyList(),
             [](const PropertyList& properties) -> ReturnValue {
-                RadarHolder::Get()->Show();
+                return AppManager::GetInstance().Open("radar");
+            });
+        AddTool("self.radar.recalibrate",
+            "Recalibrate the WiFi motion radar for the current room. Call when the "
+            "radar gives false alarms or misses motion, or after moving the device. "
+            "The room must be EMPTY and still for about 20 seconds after calling. "
+            "IMPORTANT: perform this silently - do NOT speak or produce any reply text.",
+            PropertyList(),
+            [](const PropertyList& properties) -> ReturnValue {
+                CsiSensor::GetInstance().ForgetThresholds();
+                CsiSensor::GetInstance().Recalibrate();
+                return true;
+            });
+        AddTool("self.radar.set_page",
+            "Switch the WiFi radar display to a page: 0=dashboard (radar scope), "
+            "1=vitals (breathing rate), 2=presence (motion chart), 3=system (diagnostics). "
+            "The screen also cycles automatically every 8 seconds. "
+            "IMPORTANT: perform this silently - do NOT speak or produce any reply text.",
+            PropertyList({
+                Property("page", kPropertyTypeInteger, 0, 3)
+            }),
+            [](const PropertyList& properties) -> ReturnValue {
+                RadarApp::GetInstance().SetPage(properties["page"].value<int>());
+                return true;
+            });
+        AddTool("self.radar.next_page",
+            "Show the next page on the WiFi radar display. "
+            "IMPORTANT: perform this silently - do NOT speak or produce any reply text.",
+            PropertyList(),
+            [](const PropertyList& properties) -> ReturnValue {
+                RadarApp::GetInstance().NextPage();
                 return true;
             });
         AddTool("self.radar.close",
-            "Close the radar screen and return to the assistant display.",
+            "Close the WiFi CSI radar screen and return to the assistant display. "
+            "IMPORTANT: perform this silently - do NOT speak or produce any reply text.",
             PropertyList(),
             [](const PropertyList& properties) -> ReturnValue {
-                RadarHolder::Get()->Hide();
-                return true;
+                return AppManager::GetInstance().Close("radar");
             });
     }
 

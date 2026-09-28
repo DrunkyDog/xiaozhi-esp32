@@ -8,6 +8,7 @@
 #include "led/single_led.h"
 #include "mcp_server.h"
 #include "config.h"
+#include "lvgl_theme.h"
 #include "power_save_timer.h"
 #include "axp2101.h"
 #include "i2c_device.h"
@@ -105,6 +106,13 @@ public:
                         width, height, offset_x, offset_y, mirror_x, mirror_y, swap_xy) {
         // Note: UI customization should be done in SetupUI(), not in constructor
         // to ensure lvgl objects are created before accessing them
+
+        // Default to the dark theme unless the user picked one (NVS "display/theme")
+        Settings settings("display", false);
+        if (settings.GetString("theme").empty()) {
+            auto dark = LvglThemeManager::GetInstance().GetTheme("dark");
+            if (dark != nullptr) current_theme_ = dark;
+        }
     }
 
     virtual void SetupUI() override {

@@ -190,7 +190,10 @@ void BoxAudioCodec::CreateDuplexChannels(gpio_num_t mclk, gpio_num_t bclk, gpio_
 }
 
 void BoxAudioCodec::SetOutputVolume(int volume) {
-    ESP_ERROR_CHECK(esp_codec_dev_set_out_vol(output_dev_, volume));
+    // เพิ่มเสียงลำโพงรวม +2dB (vol curve = 0.5dB/step → +4 step) โดยคงค่า volume ที่ผู้ใช้ตั้งไว้
+    int boosted = volume + 4;
+    if (boosted > 100) boosted = 100;
+    ESP_ERROR_CHECK(esp_codec_dev_set_out_vol(output_dev_, boosted));
     AudioCodec::SetOutputVolume(volume);
 }
 
@@ -241,7 +244,8 @@ void BoxAudioCodec::EnableOutput(bool enable) {
             .mclk_multiple = 0,
         };
         ESP_ERROR_CHECK(esp_codec_dev_open(output_dev_, &fs));
-        ESP_ERROR_CHECK(esp_codec_dev_set_out_vol(output_dev_, output_volume_));
+        // +2dB boost (สอดคล้องกับ SetOutputVolume) ตอนเปิด output ครั้งแรก
+        ESP_ERROR_CHECK(esp_codec_dev_set_out_vol(output_dev_, output_volume_ + 4 > 100 ? 100 : output_volume_ + 4));
     } else {
         ESP_ERROR_CHECK(esp_codec_dev_close(output_dev_));
     }

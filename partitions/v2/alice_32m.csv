@@ -1,0 +1,15 @@
+# alice-watch-os partition table (32MB flash) — shared by the Watch and AI Voice builds.
+# ESP32-S3 quad flash can only be mmapped (code, assets) inside the first 16MB, so both
+# firmwares and the assets end at 0x1000000. The avatar pack sits above 16MB and is read
+# into PSRAM with esp_partition_read(), which needs no mapping.
+#   Watch = ota_0/ota_1 (A/B), AI Voice (xiaozhi) = ota_2 (single slot, updated via Watch/USB)
+# Name,     Type, SubType,  Offset,    Size
+nvsfactory, data, nvs,      ,          200K
+nvs,        data, nvs,      ,          840K
+otadata,    data, ota,      ,          0x2000
+phy_init,   data, phy,      ,          0x1000
+ota_0,      app,  ota_0,    0x110000,  0x280000
+ota_1,      app,  ota_1,    0x390000,  0x280000
+ota_2,      app,  ota_2,    0x610000,  4M
+assets,     data, spiffs,   0xA10000,  0x5F0000
+avatar,     data, 0x40,     0x1000000, 8M

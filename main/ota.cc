@@ -267,10 +267,30 @@ void Ota::MarkCurrentVersionValid() {
     }
 }
 
+// Stay inside the running image's A/B pair (ota_0<->ota_1, ota_2<->ota_3, ...). On a two-slot
+// table this is the slot esp_ota_get_next_update_partition() picks anyway. On tables that host
+// several firmwares (partitions/v2/alice_32m.csv) the default would wrap into another
+// firmware's slot, so a single-slot image refuses to update itself instead.
+static const esp_partition_t* GetUpdatePartition() {
+    auto running = esp_ota_get_running_partition();
+    if (running == nullptr || running->type != ESP_PARTITION_TYPE_APP ||
+        running->subtype < ESP_PARTITION_SUBTYPE_APP_OTA_MIN ||
+        running->subtype >= ESP_PARTITION_SUBTYPE_APP_OTA_MAX) {
+        return esp_ota_get_next_update_partition(NULL);  // factory image
+    }
+    int slot = running->subtype - ESP_PARTITION_SUBTYPE_APP_OTA_MIN;
+    auto partner_subtype = static_cast<esp_partition_subtype_t>(ESP_PARTITION_SUBTYPE_APP_OTA_MIN + (slot ^ 1));
+    auto partner = esp_partition_find_first(ESP_PARTITION_TYPE_APP, partner_subtype, NULL);
+    if (partner == nullptr) {
+        ESP_LOGW(TAG, "%s has no partner slot; this firmware is updated from another app", running->label);
+    }
+    return partner;
+}
+
 bool Ota::Upgrade(const std::string& firmware_url, std::function<void(int progress, size_t speed)> callback) {
     ESP_LOGI(TAG, "Upgrading firmware from %s", firmware_url.c_str());
     esp_ota_handle_t update_handle = 0;
-    auto update_partition = esp_ota_get_next_update_partition(NULL);
+    auto update_partition = GetUpdatePartition();
     if (update_partition == NULL) {
         ESP_LOGE(TAG, "Failed to get update partition");
         return false;

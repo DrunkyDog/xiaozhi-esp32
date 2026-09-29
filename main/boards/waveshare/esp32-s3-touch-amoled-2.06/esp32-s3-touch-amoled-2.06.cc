@@ -11,6 +11,8 @@
 #include "power_save_timer.h"
 #include "axp2101.h"
 #include "i2c_device.h"
+#include "alice_switch.h"
+#include "avatar_player.h"
 
 #include <esp_log.h>
 #include <esp_lcd_panel_vendor.h>
@@ -74,6 +76,25 @@ static const sh8601_lcd_init_cmd_t vendor_specific_init[] = {
 };
 
 // 在waveshare_amoled_2_06类之前添加新的显示类
+// BoxAudioCodec that also reports the speaker level to the avatar for lip-sync.
+// OutputData() runs in the audio output task; a peak over every 8th sample is cheap enough there.
+class AvatarAudioCodec : public BoxAudioCodec {
+public:
+    using BoxAudioCodec::BoxAudioCodec;
+
+    void OutputData(std::vector<int16_t>& data) override {
+        int peak = 0;
+        for (size_t i = 0; i < data.size(); i += 8) {
+            int v = data[i] < 0 ? -data[i] : data[i];
+            if (v > peak) {
+                peak = v;
+            }
+        }
+        AvatarPlayer::SetOutputLevel(peak * 100 / 32768);
+        BoxAudioCodec::OutputData(data);
+    }
+};
+
 class CustomLcdDisplay : public SpiLcdDisplay {
 public:
     static void rounder_event_cb(lv_event_t* e) {
@@ -116,6 +137,27 @@ public:
         lv_obj_set_style_pad_right(status_bar_, LV_HOR_RES*  0.1, 0);
         lv_display_add_event_cb(display_, rounder_event_cb, LV_EVENT_INVALIDATE_AREA, NULL);
     }
+
+    // The layered avatar (partition "avatar", see avatar_player.h) replaces the emoji for the
+    // moods it contains; anything else falls through to the emoji collection.
+    virtual void SetEmotion(const char* emotion) override {
+        {
+            DisplayLockGuard lock(this);
+            if (avatar_.Show(emoji_image_, emotion)) {
+                if (gif_controller_) {
+                    gif_controller_->Stop();  // a GIF would keep overwriting the body frame
+                    gif_controller_.reset();
+                }
+                lv_obj_add_flag(emoji_label_, LV_OBJ_FLAG_HIDDEN);
+                return;
+            }
+            avatar_.Hide();
+        }
+        SpiLcdDisplay::SetEmotion(emotion);
+    }
+
+private:
+    AvatarPlayer avatar_;
 };
 
 class CustomBacklight : public Backlight {
@@ -185,6 +227,11 @@ private:
         buscfg.data1_io_num = EXAMPLE_PIN_NUM_LCD_DATA1;
         buscfg.data2_io_num = EXAMPLE_PIN_NUM_LCD_DATA2;
         buscfg.data3_io_num = EXAMPLE_PIN_NUM_LCD_DATA3;
+        // Octal lines unused: a zero-initialised pin would claim GPIO0 (the BOOT button)
+        buscfg.data4_io_num = GPIO_NUM_NC;
+        buscfg.data5_io_num = GPIO_NUM_NC;
+        buscfg.data6_io_num = GPIO_NUM_NC;
+        buscfg.data7_io_num = GPIO_NUM_NC;
         buscfg.max_transfer_sz = DISPLAY_WIDTH*  DISPLAY_HEIGHT*  sizeof(uint16_t);
         buscfg.flags = SPICOMMON_BUSFLAG_QUAD;
         ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO));
@@ -198,6 +245,11 @@ private:
                 return;
             }
             app.ToggleChatState();
+        });
+
+        // alice layout only: long-press BOOT leaves AI Voice for the Watch firmware
+        boot_button_.OnLongPress([]() {
+            alice::ReturnToWatch();
         });
 
 #if CONFIG_USE_DEVICE_AEC
@@ -316,10 +368,11 @@ public:
         InitializeTouch();
         InitializeButtons();
         InitializeTools();
+        alice::Begin();  // no-op outside the alice dual-firmware layout
     }
 
     virtual AudioCodec* GetAudioCodec() override {
-        static BoxAudioCodec audio_codec(
+        static AvatarAudioCodec audio_codec(
             i2c_bus_, 
             AUDIO_INPUT_SAMPLE_RATE, 
             AUDIO_OUTPUT_SAMPLE_RATE,

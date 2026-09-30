@@ -8,8 +8,11 @@
 #include "led/single_led.h"
 #include "mcp_server.h"
 #include "config.h"
+#include "lvgl_theme.h"
 #include "power_save_timer.h"
 #include "axp2101.h"
+#include <esp_ota_ops.h>
+#include <esp_app_desc.h>
 #include "i2c_device.h"
 
 #include <esp_log.h>
@@ -17,6 +20,7 @@
 #include <driver/i2c_master.h>
 #include <driver/spi_master.h>
 #include "settings.h"
+#include "lan_update.h"
 
 #include <esp_lcd_touch_ft5x06.h>
 #include <esp_lvgl_port.h>
@@ -51,6 +55,26 @@ public:
         WriteReg(0x61, 0x02); // set Main battery precharge current to 50mA
         WriteReg(0x62, 0x0A); // set Main battery charger current to 400mA ( 0x08-200mA, 0x09-300mA, 0x0A-400mA )
         WriteReg(0x63, 0x01); // set Main battery term charge current to 25mA
+    }
+
+    // Same PWRON short-press handling as the esp32-s3-touch-amoled-1.8-v2 board
+    void EnablePowerButtonShortPressIrq() {
+        ClearIrqStatus();
+        WriteReg(0x41, ReadReg(0x41) | 0x08); // Enable AXP2101 PWRON short press IRQ
+    }
+
+    bool ConsumePowerButtonShortPressIrq() {
+        uint8_t status = ReadReg(0x49);
+        if (status != 0) {
+            WriteReg(0x49, status);
+        }
+        return (status & 0x08) != 0;
+    }
+
+    void ClearIrqStatus() {
+        WriteReg(0x48, 0xff);
+        WriteReg(0x49, 0xff);
+        WriteReg(0x4a, 0xff);
     }
 };
 
@@ -105,6 +129,13 @@ public:
                         width, height, offset_x, offset_y, mirror_x, mirror_y, swap_xy) {
         // Note: UI customization should be done in SetupUI(), not in constructor
         // to ensure lvgl objects are created before accessing them
+
+        // Default to the dark theme unless the user picked one (NVS "display/theme")
+        Settings settings("display", false);
+        if (settings.GetString("theme").empty()) {
+            auto dark = LvglThemeManager::GetInstance().GetTheme("dark");
+            if (dark != nullptr) current_theme_ = dark;
+        }
     }
 
     virtual void SetupUI() override {
@@ -190,7 +221,88 @@ private:
         ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO));
     }
 
+    // Launcher coexistence: this firmware may run from ota_2/ota_3 next to a Launcher in ota_0/ota_1.
+    // PWR short press switches back to the newest usable Launcher image.
+    static bool LauncherPartitionHealthy(const esp_partition_t* p, esp_app_desc_t* desc) {
+        if (p == nullptr || esp_ota_get_partition_description(p, desc) != ESP_OK) {
+            return false;
+        }
+        return true;
+    }
+
+    static bool IsRollbackState(const esp_partition_t* p) {
+        esp_ota_img_states_t state;
+        return esp_ota_get_state_partition(p, &state) == ESP_OK &&
+               (state == ESP_OTA_IMG_INVALID || state == ESP_OTA_IMG_ABORTED);
+    }
+
+    static int CompareVersion(const char* a, const char* b) {
+        while (*a || *b) {
+            char* ea = nullptr;
+            char* eb = nullptr;
+            long na = strtol(a, &ea, 10);
+            long nb = strtol(b, &eb, 10);
+            if (na != nb) return na < nb ? -1 : 1;
+            a = (*ea == '.') ? ea + 1 : ea;
+            b = (*eb == '.') ? eb + 1 : eb;
+            if ((*a && (*a < '0' || *a > '9')) || (*b && (*b < '0' || *b > '9'))) break;
+        }
+        return 0;
+    }
+
+    static bool RunningNextToLauncher() {
+        auto running = esp_ota_get_running_partition();
+        return running != nullptr && running->subtype >= ESP_PARTITION_SUBTYPE_APP_OTA_2 &&
+               running->subtype < ESP_PARTITION_SUBTYPE_APP_OTA_MAX;
+    }
+
+    // PWR short press -> Launcher (only when sharing flash with it)
+    static void PowerButtonTask(void* arg) {
+        auto* self = static_cast<WaveshareEsp32s3TouchAMOLED2inch06*>(arg);
+        while (true) {
+            if (self->pmic_ != nullptr && self->pmic_->ConsumePowerButtonShortPressIrq()) {
+                self->ReturnToLauncher();
+            }
+            vTaskDelay(pdMS_TO_TICKS(100));
+        }
+    }
+
+    void ReturnToLauncher() {
+        if (!RunningNextToLauncher()) {
+            return;  // standalone layout: there is no Launcher to return to
+        }
+        const esp_partition_t* best = nullptr;
+        esp_app_desc_t best_desc = {};
+        bool best_healthy = false;
+        for (auto sub : {ESP_PARTITION_SUBTYPE_APP_OTA_0, ESP_PARTITION_SUBTYPE_APP_OTA_1}) {
+            auto p = esp_partition_find_first(ESP_PARTITION_TYPE_APP, sub, nullptr);
+            esp_app_desc_t desc;
+            if (!LauncherPartitionHealthy(p, &desc)) continue;
+            bool healthy = !IsRollbackState(p);
+            if (best == nullptr || (healthy && !best_healthy) ||
+                (healthy == best_healthy && CompareVersion(desc.version, best_desc.version) > 0)) {
+                best = p;
+                best_desc = desc;
+                best_healthy = healthy;
+            }
+        }
+        if (best == nullptr) {
+            ESP_LOGW(TAG, "No Launcher image found");
+            return;
+        }
+        ESP_LOGI(TAG, "Return to Launcher (%s, %s)", best->label, best_desc.version);
+        if (esp_ota_set_boot_partition(best) == ESP_OK) {
+            vTaskDelay(pdMS_TO_TICKS(100));
+            esp_restart();
+        }
+    }
+
     void InitializeButtons() {
+        // BOOT long press: open/close the LAN update page for 5 minutes (PWR short press returns to the Launcher)
+        boot_button_.OnLongPress([]() {
+            LanUpdate::GetInstance().Toggle();
+        });
+
         boot_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
             if (app.GetDeviceState() == kDeviceStateStarting) {
@@ -315,6 +427,11 @@ public:
         InitializeSH8601Display();
         InitializeTouch();
         InitializeButtons();
+        if (RunningNextToLauncher() && pmic_ != nullptr) {
+            pmic_->EnablePowerButtonShortPressIrq();
+            ESP_LOGI(TAG, "Launcher found: PWR short press returns to it; BOOT long press opens LAN update");
+            xTaskCreate(PowerButtonTask, "pwr_button", 4096, this, 5, nullptr);
+        }
         InitializeTools();
     }
 
@@ -331,7 +448,13 @@ public:
             AUDIO_CODEC_PA_PIN, 
             AUDIO_CODEC_ES8311_ADDR, 
             AUDIO_CODEC_ES7210_ADDR, 
-            AUDIO_INPUT_REFERENCE);
+            AUDIO_INPUT_REFERENCE,
+            /* input_gain */ 30.0f,
+            /* reference_gain_channel */ -1,
+            /* reference_gain */ 0.0f,
+            // NS4150B on this board is supplied from VCC3V3, not the 5 V rail
+            // the shared default assumes (schematic V1.0, PA&SPEAKER block).
+            /* pa_voltage */ 3.3f);
         return &audio_codec;
     }
 
